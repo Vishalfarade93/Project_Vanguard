@@ -1,0 +1,95 @@
+# ─── Project Vanguard ── Root .gitignore ────────────────────────────────────
+
+# ──────────────────────────────────
+# OS / IDE
+# ──────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+*.suo
+*.user
+*.userosscache
+*.sln.docobj
+*.log
+
+# ──────────────────────────────────
+# Java / Maven (Backend)
+# ──────────────────────────────────
+target/
+*.class
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+*.classpath
+*.project
+.settings/
+.mvn/wrapper/maven-wrapper.jar
+
+# Keep the wrapper properties (version pinning)
+!.mvn/wrapper/maven-wrapper.properties
+
+# ──────────────────────────────────
+# Spring Boot secrets  ← IMPORTANT
+# ──────────────────────────────────
+backend/src/main/resources/application.properties
+backend/src/main/resources/application.yml
+backend/src/main/resources/application-prod.properties
+backend/src/main/resources/application-local.properties
+
+# Keep the template/example config
+!backend/src/main/resources/application.example.properties
+
+# ──────────────────────────────────
+# Node / Frontend
+# ──────────────────────────────────
+node_modules/
+frontend/node_modules/
+frontend/.next/
+frontend/dist/
+frontend/build/
+frontend/.vite/
+frontend/.cache/
+
+# ──────────────────────────────────
+# Environment files  ← IMPORTANT
+# ──────────────────────────────────
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
+
+# ──────────────────────────────────
+# Logs
+# ──────────────────────────────────
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ──────────────────────────────────
+# Test / Coverage
+# ──────────────────────────────────
+coverage/
+*.lcov
+.nyc_output/
+
+# ──────────────────────────────────
+# Scratch / temp
+# ──────────────────────────────────
+scratch/
