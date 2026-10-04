@@ -63,18 +63,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <>
-      {/* ── Full-Height Modern Left Vertical Strip ────────────────── */}
-      <aside className="relative flex flex-col justify-between w-[64px] h-screen bg-white border-r border-slate-200/90 text-slate-700 z-30 select-none flex-shrink-0 py-4 shadow-[2px_0_12px_rgba(0,0,0,0.02)]">
+      {/* ── Full-Height Left Navigation Strip ────────────────── */}
+      <aside className="relative flex flex-col justify-between w-[64px] h-screen bg-white border-r border-slate-200/90 text-slate-700 z-30 select-none flex-shrink-0 py-5 shadow-[2px_0_12px_rgba(0,0,0,0.02)]">
         
-        {/* Top: Brand Monogram & Navigation Strip */}
-        <div className="flex flex-col items-center w-full space-y-5">
-          {/* Top Brand Mark */}
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-400 via-amber-300 to-amber-200 text-slate-950 font-extrabold text-sm flex items-center justify-center shadow-md font-display transition-transform hover:scale-105 cursor-default">
-            V
-          </div>
-
-          {/* Navigation Items */}
-          <nav className="w-full flex flex-col items-center space-y-2.5">
+        {/* Navigation Items (Clean top alignment without redundant logo duplication) */}
+        <div className="flex flex-col items-center w-full">
+          <nav className="w-full flex flex-col items-center space-y-3">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id && item.id !== 'INTEGRATIONS';
@@ -86,7 +80,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   onMouseEnter={() => setHoveredTab(item.id)}
                   onMouseLeave={() => setHoveredTab(null)}
                 >
-                  {/* Active Indicator Bar on left edge */}
+                  {/* Left Active Indicator Bar */}
                   {isActive && (
                     <span className="absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-vanguard-navy shadow-sm" />
                   )}
