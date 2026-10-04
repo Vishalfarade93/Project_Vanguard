@@ -112,15 +112,15 @@ export const BudgetScenarioDashboard: React.FC = () => {
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={() => setIsSidebarCollapsed((prev) => !prev)}
         onOpenIntegrationsModal={() => setIsIntegrationsOpen(true)}
+        onPolicyChange={() => { /* SpendRequestsView reads from localStorage directly */ }}
       />
 
       {/* ─── Main Content Column ────────────────────────────── */}
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto">
-        {/* Sticky Header with navigation status and sidebar toggle */}
+        {/* Sticky Header — sidebar collapse is driven by clicking the brand logo, no hamburger */}
         <Header
           onOpenIntegrations={() => setIsIntegrationsOpen(true)}
           pendingCount={dynamicSummary.totalExpensesCount}
-          onToggleSidebar={() => setIsSidebarCollapsed((prev) => !prev)}
           activeNavTab={activeNavTab === 'SPEND_REQUESTS' ? 'SPEND_REQUESTS' : 'FORECASTS'}
         />
 
