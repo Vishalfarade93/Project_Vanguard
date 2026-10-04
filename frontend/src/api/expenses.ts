@@ -51,6 +51,17 @@ export async function updateExpenseStatus(
 }
 
 /**
+ * Update details (amount, predicted date, description, department) of a predicted expense.
+ */
+export async function updateExpenseDetails(
+  id: number,
+  updates: Partial<PredictedExpense>
+): Promise<PredictedExpense> {
+  const response = await apiClient.put<PredictedExpense>(`/expenses/${id}`, updates);
+  return response.data;
+}
+
+/**
  * Manually trigger AI extraction on unprocessed chat messages.
  */
 export async function triggerExtraction(): Promise<{ extractedCount: number; message: string }> {

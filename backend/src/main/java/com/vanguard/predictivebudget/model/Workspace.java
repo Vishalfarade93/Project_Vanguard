@@ -39,6 +39,9 @@ public class Workspace {
     @Column(name = "inbound_email_slug")
     private String inboundEmailSlug;
 
+    @Column(name = "gmail_forwarding_code")
+    private String gmailForwardingCode;
+
     @Column(name = "created_at")
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();

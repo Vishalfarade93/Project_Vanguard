@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Check, MessageSquare, AlertCircle, RefreshCw, Sliders } from 'lucide-react';
+import { Check, AlertCircle, RefreshCw, Sliders } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { getIntegrationStatus, syncSlackChannels, getSlackAuthorizeUrl } from '../api/expenses';
 import { TenantIntegrationStatus } from '../types';
@@ -132,26 +132,43 @@ export const SlackConnectionBanner: React.FC<SlackConnectionBannerProps> = ({
         </div>
 
         {/* Right: Actions */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-shrink-0">
           {!isConnected ? (
-            <button onClick={handleOAuth}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-vanguard-gold hover:bg-amber-400 text-vanguard-black border border-amber-400 shadow-sm transition cursor-pointer font-display">
-              <SlackMark />
-              Add to Slack
-            </button>
+            <>
+              <button
+                onClick={handleOAuth}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-vanguard-navy hover:bg-vanguard-blue text-white shadow-xs transition-all duration-200 cursor-pointer whitespace-nowrap flex-shrink-0"
+              >
+                <SlackMark />
+                <span>Add to Slack</span>
+              </button>
+              <button
+                onClick={onOpenIntegrations}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-700 bg-white hover:bg-slate-50 hover:text-slate-900 border border-slate-200 shadow-xs transition-all duration-200 cursor-pointer whitespace-nowrap flex-shrink-0"
+              >
+                <Sliders className="w-3 h-3 text-slate-400" />
+                <span>Manage</span>
+              </button>
+            </>
           ) : (
-            <button onClick={handleSync} disabled={isSyncing}
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold text-vanguard-navy bg-slate-50 hover:bg-slate-100 border border-slate-200 transition cursor-pointer disabled:opacity-50 font-display">
-              <RefreshCw className={`w-3 h-3 text-vanguard-blue ${isSyncing ? 'animate-spin' : ''}`} />
-              {isSyncing ? 'Syncing…' : 'Sync'}
-            </button>
+            <>
+              <button
+                onClick={handleSync}
+                disabled={isSyncing}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 shadow-xs transition-all duration-200 cursor-pointer disabled:opacity-50 whitespace-nowrap flex-shrink-0"
+              >
+                <RefreshCw className={`w-3 h-3 text-vanguard-blue ${isSyncing ? 'animate-spin' : ''}`} />
+                <span>{isSyncing ? 'Syncing...' : 'Sync'}</span>
+              </button>
+              <button
+                onClick={onOpenIntegrations}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-white bg-vanguard-navy hover:bg-vanguard-blue shadow-xs transition-all duration-200 cursor-pointer whitespace-nowrap flex-shrink-0"
+              >
+                <Sliders className="w-3 h-3 text-vanguard-gold" />
+                <span>Manage</span>
+              </button>
+            </>
           )}
-
-          <button onClick={onOpenIntegrations}
-            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold text-white bg-vanguard-blue hover:bg-vanguard-navy transition cursor-pointer font-display">
-            <Sliders className="w-3 h-3 text-vanguard-gold" />
-            Manage
-          </button>
         </div>
       </div>
     </div>

@@ -13,6 +13,8 @@ public interface PredictedExpenseRepository extends JpaRepository<PredictedExpen
     List<PredictedExpense> findByStatus(ExpenseStatus status);
     List<PredictedExpense> findByWorkspaceId(Long workspaceId);
     List<PredictedExpense> findByWorkspaceIdOrderByPredictedDateAsc(Long workspaceId);
+    List<PredictedExpense> findByWorkspaceIdAndStatus(Long workspaceId, ExpenseStatus status);
+    List<PredictedExpense> findByRawMessageId(Long rawMessageId);
     java.util.Optional<PredictedExpense> findFirstByWorkspaceIdAndThreadTsOrderByCreatedAtDesc(Long workspaceId, String threadTs);
     java.util.Optional<PredictedExpense> findFirstByWorkspaceIdAndTopicKeyOrderByCreatedAtDesc(Long workspaceId, String topicKey);
 }

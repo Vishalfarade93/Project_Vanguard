@@ -29,6 +29,8 @@ export default {
         sans:    ['"DM Sans"', 'system-ui', 'sans-serif'],
         display: ['Sora', 'system-ui', 'sans-serif'],
         mono:    ['"JetBrains Mono"', 'monospace'],
+        auth:    ['Poppins', 'system-ui', 'sans-serif'],
+        landing: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
       },
       boxShadow: {
         'card':    '0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,29,61,0.05)',

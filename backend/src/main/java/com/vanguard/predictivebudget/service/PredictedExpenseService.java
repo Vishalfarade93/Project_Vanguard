@@ -75,6 +75,30 @@ public class PredictedExpenseService {
         return expenseRepository.save(expense);
     }
 
+    @Transactional
+    public PredictedExpense updateExpenseDetails(Long id, java.util.Map<String, Object> updates) {
+        PredictedExpense expense = expenseRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Expense not found with ID: " + id));
+
+        if (updates.containsKey("estimatedAmount") && updates.get("estimatedAmount") != null) {
+            BigDecimal amt = new BigDecimal(updates.get("estimatedAmount").toString());
+            expense.setEstimatedAmount(amt);
+        }
+        if (updates.containsKey("predictedDate") && updates.get("predictedDate") != null) {
+            String dateStr = updates.get("predictedDate").toString();
+            expense.setPredictedDate(LocalDate.parse(dateStr));
+        }
+        if (updates.containsKey("itemDescription") && updates.get("itemDescription") != null) {
+            expense.setItemDescription(updates.get("itemDescription").toString());
+        }
+        if (updates.containsKey("department") && updates.get("department") != null) {
+            expense.setDepartment(updates.get("department").toString());
+        }
+
+        log.info("Updated expense ID {} details: amount=${}, date={}", id, expense.getEstimatedAmount(), expense.getPredictedDate());
+        return expenseRepository.save(expense);
+    }
+
     @Transactional(readOnly = true)
     public ExpenseSummaryDto getSummary() {
         return getSummaryForWorkspace(null, null);
@@ -98,6 +122,10 @@ public class PredictedExpenseService {
         BigDecimal approvedSpend = BigDecimal.ZERO;
 
         for (PredictedExpense exp : filtered) {
+            if (exp.getStatus() == ExpenseStatus.REJECTED || exp.getStatus() == ExpenseStatus.RETRACTED) {
+                continue; // Retracted and Rejected items do not count toward projected spend
+            }
+
             BigDecimal amt = exp.getEstimatedAmount() != null ? exp.getEstimatedAmount() : BigDecimal.ZERO;
             totalSpend = totalSpend.add(amt);
 

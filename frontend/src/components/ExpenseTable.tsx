@@ -15,14 +15,18 @@ import {
   ArrowUpDown,
   SlidersHorizontal,
   X,
+  Download,
+  Check,
 } from 'lucide-react';
-import { PredictedExpense } from '../types';
+import { PredictedExpense, ExpenseStatus } from '../types';
+import { updateExpenseStatus } from '../api/expenses';
 
 interface ExpenseTableProps {
   expenses: PredictedExpense[];
   loading: boolean;
   onSelectExpense: (expense: PredictedExpense) => void;
   activeTimeframeLabel?: string;
+  onExpenseUpdated?: () => void;
 }
 
 const CATEGORY_META: Record<string, { label: string; color: string; bg: string; dot: string }> = {
@@ -38,13 +42,16 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
   loading,
   onSelectExpense,
   activeTimeframeLabel,
+  onExpenseUpdated,
 }) => {
   const [activeTab,        setActiveTab]        = useState<'PROJECTED' | 'HISTORY'>('PROJECTED');
   const [searchTerm,       setSearchTerm]       = useState('');
   const [departmentFilter, setDepartmentFilter] = useState<string>('ALL');
+  const [sourceFilter,     setSourceFilter]     = useState<'ALL' | 'SLACK' | 'EMAIL'>('ALL');
   const [sortOrder,        setSortOrder]        = useState<'asc' | 'desc'>('desc');
   const [currentPage,      setCurrentPage]      = useState<number>(1);
   const [pageSize,         setPageSize]         = useState<number>(8);
+  const [quickActionLoading, setQuickActionLoading] = useState<number | null>(null);
 
   const { projectedList, historyList } = useMemo(() => {
     const todayStr = new Date().toISOString().split('T')[0];
@@ -65,26 +72,47 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
     return historyList.length > 0 ? historyList : expenses;
   }, [activeTab, projectedList, historyList, expenses]);
 
+  const { slackCount, emailCount } = useMemo(() => {
+    let s = 0, e = 0;
+    tabExpenses.forEach((item) => {
+      const isEmail = item.sourceType === 'GMAIL' ||
+        (item.sourceChannelOrSubject?.toLowerCase().startsWith('email') ?? false);
+      if (isEmail) e++;
+      else s++;
+    });
+    return { slackCount: s, emailCount: e };
+  }, [tabExpenses]);
+
   const filteredExpenses = useMemo(() => {
     return tabExpenses
       .filter((item) => {
+        const isEmail = item.sourceType === 'GMAIL' ||
+          (item.sourceChannelOrSubject?.toLowerCase().startsWith('email') ?? false);
+
+        const matchesSource =
+          sourceFilter === 'ALL'
+            ? true
+            : sourceFilter === 'EMAIL'
+            ? isEmail
+            : !isEmail;
+
         const matchesSearch =
           item.itemDescription.toLowerCase().includes(searchTerm.toLowerCase()) ||
           (item.sourceChannelOrSubject &&
             item.sourceChannelOrSubject.toLowerCase().includes(searchTerm.toLowerCase()));
         const matchesDept =
           departmentFilter === 'ALL' ? true : item.department === departmentFilter;
-        return matchesSearch && matchesDept;
+        return matchesSource && matchesSearch && matchesDept;
       })
       .sort((a, b) => {
         const amtA = Number(a.estimatedAmount) || 0;
         const amtB = Number(b.estimatedAmount) || 0;
         return sortOrder === 'desc' ? amtB - amtA : amtA - amtB;
       });
-  }, [tabExpenses, searchTerm, departmentFilter, sortOrder]);
+  }, [tabExpenses, searchTerm, departmentFilter, sourceFilter, sortOrder]);
 
   // Reset page on user-driven filter changes — NOT on expenses polling
-  useEffect(() => { setCurrentPage(1); }, [searchTerm, departmentFilter, activeTab]);
+  useEffect(() => { setCurrentPage(1); }, [searchTerm, departmentFilter, sourceFilter, activeTab]);
 
   const totalPages = Math.max(1, Math.ceil(filteredExpenses.length / pageSize));
   useEffect(() => {
@@ -104,6 +132,64 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
       const diff = Math.ceil((new Date(dateStr).getTime() - Date.now()) / 86400000);
       return Math.max(0, diff);
     } catch { return 21; }
+  };
+
+  const handleQuickStatus = async (
+    e: React.MouseEvent,
+    id: number,
+    newStatus: ExpenseStatus
+  ) => {
+    e.stopPropagation();
+    try {
+      setQuickActionLoading(id);
+      await updateExpenseStatus(id, newStatus);
+      onExpenseUpdated?.();
+    } catch (err) {
+      console.error('Failed to quick-update expense status', err);
+    } finally {
+      setQuickActionLoading(null);
+    }
+  };
+
+  const handleExportCsv = () => {
+    if (filteredExpenses.length === 0) return;
+
+    const headers = [
+      'ID',
+      'Item Description',
+      'Department',
+      'Estimated Amount ($)',
+      'Predicted Date',
+      'Confidence Score (%)',
+      'Status',
+      'Source Type',
+      'Channel / Subject',
+      'Raw Snippet'
+    ];
+
+    const rows = filteredExpenses.map((exp) => [
+      exp.id,
+      `"${(exp.itemDescription || '').replace(/"/g, '""')}"`,
+      `"${(exp.department || '').replace(/"/g, '""')}"`,
+      exp.estimatedAmount ?? 0,
+      exp.predictedDate || '',
+      exp.confidenceScore ?? 0,
+      exp.status || 'PENDING',
+      exp.sourceType || 'SLACK',
+      `"${(exp.sourceChannelOrSubject || '').replace(/"/g, '""')}"`,
+      `"${(exp.rawSnippet || '').replace(/"/g, '""')}"`
+    ]);
+
+    const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `vanguard-forecast-${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   const catMeta = (dept?: string) => CATEGORY_META[dept ?? ''] ?? CATEGORY_META.GENERAL_OPS;
@@ -184,19 +270,75 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
 
         {/* Category filter */}
         <div className="relative">
-          <SlidersHorizontal className="w-3 h-3 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+          <SlidersHorizontal className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
           <select
             value={departmentFilter}
             onChange={(e) => setDepartmentFilter(e.target.value)}
             className="pl-7 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-700 focus:outline-none focus:border-vanguard-blue appearance-none font-sans cursor-pointer"
           >
-            <option value="ALL">All</option>
+            <option value="ALL">All Categories</option>
             <option value="TRAVEL">Travel</option>
             <option value="CONTRACTORS">Contractors</option>
             <option value="SOFTWARE_TOOLS">Software</option>
             <option value="INFRASTRUCTURE">Infrastructure</option>
             <option value="GENERAL_OPS">General Ops</option>
           </select>
+        </div>
+
+        {/* Source filter pills (All / Slack / Email) */}
+        <div className="flex items-center gap-1 bg-slate-100/80 p-0.5 rounded-lg border border-slate-200">
+          <button
+            type="button"
+            onClick={() => setSourceFilter('ALL')}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all duration-150 cursor-pointer ${
+              sourceFilter === 'ALL'
+                ? 'bg-vanguard-navy text-white shadow-xs'
+                : 'text-slate-500 hover:text-slate-900 hover:bg-white/70'
+            }`}
+          >
+            <span>All Sources</span>
+            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+              sourceFilter === 'ALL' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600'
+            }`}>
+              {tabExpenses.length}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSourceFilter('SLACK')}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all duration-150 cursor-pointer ${
+              sourceFilter === 'SLACK'
+                ? 'bg-vanguard-navy text-white shadow-xs'
+                : 'text-slate-500 hover:text-slate-900 hover:bg-white/70'
+            }`}
+          >
+            <MessageSquare className={`w-3 h-3 ${sourceFilter === 'SLACK' ? 'text-indigo-300' : 'text-slate-400'}`} />
+            <span>Slack</span>
+            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+              sourceFilter === 'SLACK' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600'
+            }`}>
+              {slackCount}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSourceFilter('EMAIL')}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all duration-150 cursor-pointer ${
+              sourceFilter === 'EMAIL'
+                ? 'bg-vanguard-navy text-white shadow-xs'
+                : 'text-slate-500 hover:text-slate-900 hover:bg-white/70'
+            }`}
+          >
+            <Mail className={`w-3 h-3 ${sourceFilter === 'EMAIL' ? 'text-sky-300' : 'text-slate-400'}`} />
+            <span>Email</span>
+            <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+              sourceFilter === 'EMAIL' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600'
+            }`}>
+              {emailCount}
+            </span>
+          </button>
         </div>
 
         {/* Sort */}
@@ -206,6 +348,17 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
         >
           <ArrowUpDown className="w-3 h-3 text-slate-400" />
           {sortOrder === 'desc' ? 'Highest' : 'Lowest'}
+        </button>
+
+        {/* Export CSV button */}
+        <button
+          onClick={handleExportCsv}
+          disabled={filteredExpenses.length === 0}
+          title="Export current filtered view to CSV file"
+          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 transition cursor-pointer disabled:opacity-40"
+        >
+          <Download className="w-3.5 h-3.5 text-vanguard-blue" />
+          <span>Export CSV</span>
         </button>
 
         {/* Live indicator */}
@@ -249,6 +402,9 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
             {paginatedExpenses.map((expense, idx) => {
               const isEmail = expense.sourceType === 'GMAIL' ||
                 (expense.sourceChannelOrSubject?.startsWith('Email') ?? false);
+              const isRetracted = expense.status === 'RETRACTED';
+              const isApproved = expense.status === 'APPROVED';
+              const isRejected = expense.status === 'REJECTED';
               const leadTime = expense.advanceDaysNotice ?? calcLeadTime(expense.predictedDate);
               const cm       = catMeta(expense.department);
               const cc       = confColor(expense.confidenceScore ?? 0);
@@ -258,18 +414,24 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
                 <div
                   key={expense.id}
                   onClick={() => onSelectExpense(expense)}
-                  className="expense-row flex items-start gap-3 px-4 py-3.5 cursor-pointer group animate-fade-in"
+                  className={`expense-row flex items-start gap-3 px-4 py-3.5 cursor-pointer group animate-fade-in ${
+                    isRetracted || isRejected ? 'bg-slate-50/70 opacity-75' : ''
+                  }`}
                   style={{ animationDelay: `${idx * 30}ms` }}
                 >
                   {/* Source icon pill */}
                   <div className={`w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center mt-0.5 ${
-                    isEmail
+                    isRetracted
+                      ? 'bg-amber-50 border border-amber-200'
+                      : isRejected
+                      ? 'bg-rose-50 border border-rose-200'
+                      : isEmail
                       ? 'bg-sky-50 border border-sky-200'
                       : 'bg-indigo-50 border border-indigo-200'
                   }`}>
                     {isEmail
-                      ? <Mail className="w-3.5 h-3.5 text-sky-600" />
-                      : <MessageSquare className="w-3.5 h-3.5 text-indigo-600" />
+                      ? <Mail className={`w-3.5 h-3.5 ${isRetracted ? 'text-amber-600' : isRejected ? 'text-rose-600' : 'text-sky-600'}`} />
+                      : <MessageSquare className={`w-3.5 h-3.5 ${isRetracted ? 'text-amber-600' : isRejected ? 'text-rose-600' : 'text-indigo-600'}`} />
                     }
                   </div>
 
@@ -277,15 +439,34 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
                   <div className="flex-1 min-w-0 space-y-1">
                     {/* Title + badges */}
                     <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="font-semibold text-sm text-vanguard-black group-hover:text-vanguard-blue transition-colors font-display leading-tight">
+                      <span className={`font-semibold text-sm font-display leading-tight ${
+                        isRetracted || isRejected
+                          ? 'text-slate-400 line-through'
+                          : 'text-vanguard-black group-hover:text-vanguard-blue transition-colors'
+                      }`}>
                         {expense.itemDescription}
                       </span>
-                      {expense.isBenchmarkEstimate && (
+                      {isRetracted && (
+                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                          ⚠️ Retracted (Slack Deleted)
+                        </span>
+                      )}
+                      {isApproved && (
+                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                          ✓ Approved
+                        </span>
+                      )}
+                      {isRejected && (
+                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300">
+                          ✕ Dismissed
+                        </span>
+                      )}
+                      {expense.isBenchmarkEstimate && !isRetracted && !isRejected && (
                         <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
                           ⚡ Benchmark
                         </span>
                       )}
-                      {(expense.revisionCount ?? 0) > 1 && (
+                      {(expense.revisionCount ?? 0) > 1 && !isRetracted && !isRejected && (
                         <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
                           🔁 Concluded ({expense.revisionCount})
                         </span>
@@ -294,12 +475,25 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
 
                     {/* Source + snippet */}
                     <p className="text-[11px] text-slate-400 leading-tight line-clamp-1 italic">
-                      {expense.sourceChannelOrSubject ?? '#general'} ·{' '}
-                      "{expense.rawSnippet ? expense.rawSnippet.slice(0, 58) + '…' : 'Discussed in channel'}"
+                      {isEmail ? (expense.sourceChannelOrSubject ?? 'Forwarded Email') : (expense.sourceChannelOrSubject ?? '#general')} ·{' '}
+                      "{expense.rawSnippet ? expense.rawSnippet.slice(0, 58) + '...' : isEmail ? 'Vendor quote email' : 'Discussed in channel'}"
                     </p>
 
                     {/* Meta chips row */}
                     <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                      {/* Source badge */}
+                      {isEmail ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-sky-50 text-sky-700 border border-sky-200">
+                          <Mail className="w-2.5 h-2.5 text-sky-500" />
+                          Email
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                          <MessageSquare className="w-2.5 h-2.5 text-indigo-500" />
+                          Slack
+                        </span>
+                      )}
+
                       {/* Category */}
                       <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${cm.bg} ${cm.color}`}>
                         <span className={`w-1.5 h-1.5 rounded-full ${cm.dot}`} />
@@ -315,29 +509,64 @@ export const ExpenseTable: React.FC<ExpenseTableProps> = ({
                       )}
 
                       {/* Lead time */}
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        <Zap className="w-2.5 h-2.5" />
-                        {leadTime}d ahead
-                      </span>
+                      {!isRetracted && !isRejected && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          <Zap className="w-2.5 h-2.5" />
+                          {leadTime}d ahead
+                        </span>
+                      )}
+                      {(isRetracted || isRejected) && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">
+                          Excluded from total
+                        </span>
+                      )}
                     </div>
                   </div>
 
-                  {/* Right: Amount + confidence */}
-                  <div className="flex-shrink-0 flex flex-col items-end gap-1.5 min-w-[80px]">
-                    <span className="font-mono font-extrabold text-base text-vanguard-black tracking-tight">
-                      {formatCurrency(amount)}
-                    </span>
+                  {/* Right: Quick actions (hover) + Amount + confidence */}
+                  <div className="flex-shrink-0 flex items-center gap-2">
+                    {/* Quick actions for PENDING items */}
+                    {!isRetracted && !isApproved && !isRejected && (
+                      <div className="hidden sm:flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={(e) => handleQuickStatus(e, expense.id, 'APPROVED')}
+                          disabled={quickActionLoading === expense.id}
+                          title="Approve into Budget Baseline"
+                          className="p-1 rounded-md text-emerald-600 hover:text-white hover:bg-emerald-600 border border-emerald-200 hover:border-emerald-600 transition cursor-pointer disabled:opacity-50"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={(e) => handleQuickStatus(e, expense.id, 'REJECTED')}
+                          disabled={quickActionLoading === expense.id}
+                          title="Dismiss / Reject Forecast"
+                          className="p-1 rounded-md text-slate-400 hover:text-white hover:bg-rose-600 hover:border-rose-600 border border-slate-200 transition cursor-pointer disabled:opacity-50"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
 
-                    {/* Confidence score + bar */}
-                    <div className="flex items-center gap-1.5">
-                      <span className={`text-[10px] font-bold font-mono ${cc.text}`}>
-                        {expense.confidenceScore ?? 0}%
+                    <div className="flex flex-col items-end gap-1.5 min-w-[76px]">
+                      <span className={`font-mono text-base tracking-tight ${
+                        isRetracted || isRejected
+                          ? 'font-bold text-slate-400 line-through'
+                          : 'font-extrabold text-vanguard-black'
+                      }`}>
+                        {formatCurrency(amount)}
                       </span>
-                      <div className="conf-bar-track">
-                        <div
-                          className={`conf-bar-fill ${cc.bar}`}
-                          style={{ width: `${expense.confidenceScore ?? 0}%` }}
-                        />
+
+                      {/* Confidence score + bar */}
+                      <div className="flex items-center gap-1.5">
+                        <span className={`text-[10px] font-bold font-mono ${cc.text}`}>
+                          {expense.confidenceScore ?? 0}%
+                        </span>
+                        <div className="conf-bar-track">
+                          <div
+                            className={`conf-bar-fill ${cc.bar}`}
+                            style={{ width: `${expense.confidenceScore ?? 0}%` }}
+                          />
+                        </div>
                       </div>
                     </div>
 

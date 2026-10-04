@@ -54,6 +54,7 @@ export const BudgetChart: React.FC<BudgetChartProps> = ({ expenses }) => {
     const monthMap: Record<string, { monthKey: string; displayMonth: string; slack: number; gmail: number; total: number }> = {};
 
     expenses.forEach((item) => {
+      if (item.status === 'REJECTED' || item.status === 'RETRACTED') return;
       const dateObj    = item.predictedDate ? new Date(item.predictedDate) : new Date();
       const monthKey   = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}`;
       const displayMonth = dateObj.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });

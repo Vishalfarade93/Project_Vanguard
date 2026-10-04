@@ -276,10 +276,10 @@ export const ChannelManagementModal: React.FC<ChannelManagementModalProps> = ({
                 <button
                   onClick={handle1ClickOAuth}
                   disabled={isConnecting}
-                  className="inline-flex items-center px-4 py-2 rounded-xl text-xs font-bold text-slate-900 bg-amber-300 hover:bg-amber-400 shadow-sm transition cursor-pointer border border-amber-400 shrink-0"
+                  className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold text-white bg-vanguard-navy hover:bg-vanguard-blue shadow-xs transition-all cursor-pointer shrink-0 whitespace-nowrap disabled:opacity-50"
                 >
                   <SlackLogo />
-                  {isConnecting ? 'Connecting...' : 'Add to Slack'}
+                  <span>{isConnecting ? 'Connecting...' : 'Add to Slack'}</span>
                 </button>
               </div>
             )}

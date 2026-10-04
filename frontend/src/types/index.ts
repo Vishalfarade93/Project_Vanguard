@@ -1,4 +1,4 @@
-export type ExpenseStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+export type ExpenseStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'RETRACTED';
 export type SourceType = 'SLACK' | 'GMAIL' | 'MANUAL' | 'WEBHOOK';
 export type TimeframeOption = '7d' | '30d' | '90d' | 'future' | 'history' | 'all';
 

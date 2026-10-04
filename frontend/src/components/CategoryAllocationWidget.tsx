@@ -20,6 +20,7 @@ export const CategoryAllocationWidget: React.FC<CategoryAllocationWidgetProps> =
     let grand = 0;
 
     expenses.forEach((e) => {
+      if (e.status === 'REJECTED' || e.status === 'RETRACTED') return;
       const dept = e.department ?? 'GENERAL_OPS';
       const amt  = Number(e.estimatedAmount) || 0;
       totals[dept !== undefined && dept in totals ? dept : 'GENERAL_OPS'] += amt;

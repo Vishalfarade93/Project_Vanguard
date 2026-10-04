@@ -122,6 +122,21 @@ public class PredictedExpenseController {
     }
 
     /**
+     * Update details (amount, predicted date, description, department) of a predicted expense.
+     */
+    @PutMapping("/{id}")
+    public ResponseEntity<?> updateExpenseDetails(
+            @PathVariable Long id,
+            @RequestBody Map<String, Object> updates) {
+        try {
+            PredictedExpense updated = expenseService.updateExpenseDetails(id, updates);
+            return ResponseEntity.ok(updated);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    /**
      * Immediate trigger for AI extraction of all pending raw messages.
      */
     @PostMapping("/extract")

@@ -14,6 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Collections;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/slack")
@@ -25,6 +26,7 @@ public class SlackWebhookController {
     private final RawMessageRepository rawMessageRepository;
     private final WorkspaceRepository workspaceRepository;
     private final ExpenseExtractionService expenseExtractionService;
+    private final com.vanguard.predictivebudget.repository.PredictedExpenseRepository predictedExpenseRepository;
     private final ObjectMapper objectMapper;
 
     /**
@@ -58,6 +60,22 @@ public class SlackWebhookController {
                 String eventType = eventNode.has("type") ? eventNode.get("type").asText() : "";
 
                 if ("message".equalsIgnoreCase(eventType)) {
+                    String subtype = eventNode.has("subtype") ? eventNode.get("subtype").asText() : "";
+
+                    if ("message_deleted".equalsIgnoreCase(subtype)) {
+                        String deletedTs = eventNode.has("deleted_ts") ? eventNode.get("deleted_ts").asText()
+                                : (eventNode.has("previous_message") && eventNode.get("previous_message").has("ts")
+                                ? eventNode.get("previous_message").get("ts").asText() : null);
+                        String prevText = eventNode.has("previous_message") && eventNode.get("previous_message").has("text")
+                                ? eventNode.get("previous_message").get("text").asText() : "";
+
+                        log.info("Processing Slack message_deleted event for deletedTs: '{}', prevText: '{}' on Workspace {}",
+                                deletedTs, prevText, targetWorkspaceId);
+
+                        retractPredictedExpensesForDeletedMessage(targetWorkspaceId, deletedTs, prevText);
+                        return ResponseEntity.ok(Collections.singletonMap("status", "retracted"));
+                    }
+
                     String content = eventNode.has("text") ? eventNode.get("text").asText() : "";
                     String sender = eventNode.has("user") ? eventNode.get("user").asText()
                             : (eventNode.has("username") ? eventNode.get("username").asText() : "unknown_sender");
@@ -155,5 +173,30 @@ public class SlackWebhookController {
         }
 
         return 1L;
+    }
+
+    private void retractPredictedExpensesForDeletedMessage(Long workspaceId, String deletedTs, String prevText) {
+        List<com.vanguard.predictivebudget.model.PredictedExpense> pending = predictedExpenseRepository.findByWorkspaceIdAndStatus(workspaceId, com.vanguard.predictivebudget.model.ExpenseStatus.PENDING);
+        for (com.vanguard.predictivebudget.model.PredictedExpense exp : pending) {
+            boolean match = false;
+            if (deletedTs != null && !deletedTs.isEmpty() && (deletedTs.equals(exp.getThreadTs()) || deletedTs.equals(exp.getTopicKey()))) {
+                match = true;
+            }
+            if (!match && prevText != null && !prevText.trim().isEmpty()) {
+                String cleanPrev = prevText.trim().toLowerCase();
+                if (exp.getRawSnippet() != null && (exp.getRawSnippet().toLowerCase().contains(cleanPrev) || cleanPrev.contains(exp.getRawSnippet().toLowerCase()))) {
+                    match = true;
+                }
+                if (!match && exp.getItemDescription() != null && cleanPrev.contains(exp.getItemDescription().toLowerCase())) {
+                    match = true;
+                }
+            }
+            if (match) {
+                exp.setStatus(com.vanguard.predictivebudget.model.ExpenseStatus.RETRACTED);
+                exp.setAiReasoning((exp.getAiReasoning() != null ? exp.getAiReasoning() + "\n" : "") + "[RETRACTED]: Source Slack message was deleted.");
+                predictedExpenseRepository.save(exp);
+                log.info("Soft-retracted PredictedExpense ID {} ('{}') because source Slack message was deleted.", exp.getId(), exp.getItemDescription());
+            }
+        }
     }
 }

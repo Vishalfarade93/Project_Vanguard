@@ -8,7 +8,8 @@ import { BudgetChart } from './BudgetChart';
 import { CategoryAllocationWidget } from './CategoryAllocationWidget';
 import { ExpenseTable } from './ExpenseTable';
 import { ExpenseDetailDrawer } from './ExpenseDetailDrawer';
-import { ChannelManagementModal } from './ChannelManagementModal';
+import { IntegrationsHubModal } from './IntegrationsHubModal';
+import { triggerExtraction } from '../api/expenses';
 import { AlertCircle, RefreshCw, Zap, ShieldCheck } from 'lucide-react';
 import { PredictedExpense, TimeframeOption } from '../types';
 
@@ -144,6 +145,7 @@ export const BudgetScenarioDashboard: React.FC = () => {
               loading={loading}
               onSelectExpense={setSelectedExpense}
               activeTimeframeLabel={timeframeLabels[selectedTimeframe]}
+              onExpenseUpdated={refetch}
             />
           </div>
 
@@ -164,11 +166,19 @@ export const BudgetScenarioDashboard: React.FC = () => {
       </footer>
 
       {/* ─── Drawers & Modals ───────────────────────────────── */}
-      <ExpenseDetailDrawer expense={selectedExpense} onClose={() => setSelectedExpense(null)} />
-      <ChannelManagementModal
+      <ExpenseDetailDrawer
+        expense={selectedExpense}
+        onClose={() => setSelectedExpense(null)}
+        onExpenseUpdated={refetch}
+      />
+      <IntegrationsHubModal
         isOpen={isIntegrationsOpen}
         onClose={() => setIsIntegrationsOpen(false)}
-        onChannelsUpdated={refetch}
+        onExtractionSuccess={refetch}
+        onRunExtraction={async () => {
+          const res = await triggerExtraction();
+          return { count: res.extractedCount, message: res.message };
+        }}
       />
     </div>
   );

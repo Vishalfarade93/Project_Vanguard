@@ -89,7 +89,7 @@ public class ExpenseExtractionService {
 
                 if (capacityResult.isMatched()) {
                     // Specialized cloud capacity & storage domain extraction
-                    PredictedExpense existing = findExistingPrediction(targetWsId, threadTs, topicKey);
+                    PredictedExpense existing = findExistingPrediction(targetWsId, threadTs, topicKey, message.getSourceType());
 
                     if (existing != null) {
                         int rev = (existing.getRevisionCount() != null ? existing.getRevisionCount() : 1) + 1;
@@ -100,6 +100,13 @@ public class ExpenseExtractionService {
                         existing.setConfidenceScore(capacityResult.getConfidenceScore());
                         existing.setRawSnippet(message.getContent());
                         existing.setAiReasoning("Capacity update across " + rev + " iterations: " + capacityResult.getAiReasoning());
+                        if (message.getSourceType() != null) {
+                            existing.setSourceType(message.getSourceType());
+                        }
+                        if (message.getSourceChannelOrSubject() != null) {
+                            existing.setSourceChannelOrSubject(message.getSourceChannelOrSubject());
+                        }
+                        existing.setStatus(ExpenseStatus.PENDING);
                         String prior = existing.getConversationContext() != null ? existing.getConversationContext() : "";
                         existing.setConversationContext(prior + "\n[Capacity Revision #" + rev + "]: " + message.getContent());
                         predictedExpenseRepository.save(existing);
@@ -142,9 +149,16 @@ public class ExpenseExtractionService {
                         BigDecimal cost = response.getEstimatedCost() != null ? response.getEstimatedCost() : BigDecimal.ZERO;
                         String department = deduceDepartment(message.getContent(), response.getItem());
 
-                        PredictedExpense existing = findExistingPrediction(targetWsId, threadTs, topicKey);
+                        PredictedExpense existing = findExistingPrediction(targetWsId, threadTs, topicKey, message.getSourceType());
 
                         if (existing != null) {
+                            if (message.getSourceType() != null) {
+                                existing.setSourceType(message.getSourceType());
+                            }
+                            if (message.getSourceChannelOrSubject() != null) {
+                                existing.setSourceChannelOrSubject(message.getSourceChannelOrSubject());
+                            }
+                            existing.setStatus(ExpenseStatus.PENDING);
                             // Conversational Thread Reconciliation: update existing instead of creating duplicate
                             int currentRevisions = existing.getRevisionCount() != null ? existing.getRevisionCount() : 1;
                             int newRevisions = currentRevisions + 1;
@@ -255,17 +269,20 @@ public class ExpenseExtractionService {
         return extractedCount;
     }
 
-    private PredictedExpense findExistingPrediction(Long workspaceId, String threadTs, String topicKey) {
+    private PredictedExpense findExistingPrediction(Long workspaceId, String threadTs, String topicKey, String sourceType) {
         if (threadTs != null && !threadTs.trim().isEmpty()) {
             var byThread = predictedExpenseRepository.findFirstByWorkspaceIdAndThreadTsOrderByCreatedAtDesc(workspaceId, threadTs.trim());
-            if (byThread.isPresent()) {
+            if (byThread.isPresent() && byThread.get().getStatus() != ExpenseStatus.RETRACTED) {
                 return byThread.get();
             }
         }
         if (topicKey != null && !topicKey.trim().isEmpty()) {
             var byTopic = predictedExpenseRepository.findFirstByWorkspaceIdAndTopicKeyOrderByCreatedAtDesc(workspaceId, topicKey.trim());
-            if (byTopic.isPresent()) {
-                return byTopic.get();
+            if (byTopic.isPresent() && byTopic.get().getStatus() != ExpenseStatus.RETRACTED) {
+                String existingSource = byTopic.get().getSourceType();
+                if (sourceType == null || existingSource == null || sourceType.equalsIgnoreCase(existingSource)) {
+                    return byTopic.get();
+                }
             }
         }
         return null;

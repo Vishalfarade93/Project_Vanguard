@@ -26,6 +26,7 @@ public class SlackClientService {
 
     private final RawMessageRepository rawMessageRepository;
     private final com.vanguard.predictivebudget.repository.WorkspaceRepository workspaceRepository;
+    private final com.vanguard.predictivebudget.repository.PredictedExpenseRepository predictedExpenseRepository;
     private final ExpenseExtractionService expenseExtractionService;
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
@@ -247,6 +248,46 @@ public class SlackClientService {
                                         ingestedCount++;
                                         ingestedSnippets.add(text);
                                         log.info("Ingested real Slack message for Workspace {}: '{}'", targetWorkspaceId, text);
+                                    }
+                                }
+                            }
+
+                            // Reconcile deleted messages: if a pending Slack-sourced prediction's snippet is no longer present in recent channel history, mark RETRACTED
+                            if (predictedExpenseRepository != null) {
+                                java.util.Set<String> activeTexts = new java.util.HashSet<>();
+                                for (JsonNode m : messagesNode) {
+                                    String t = m.path("text").asText("");
+                                    if (!t.trim().isEmpty()) {
+                                        activeTexts.add(t.trim().toLowerCase());
+                                    }
+                                }
+
+                                if (!activeTexts.isEmpty()) {
+                                    List<com.vanguard.predictivebudget.model.PredictedExpense> pendingList =
+                                            predictedExpenseRepository.findByWorkspaceIdAndStatus(targetWorkspaceId, com.vanguard.predictivebudget.model.ExpenseStatus.PENDING);
+                                    for (com.vanguard.predictivebudget.model.PredictedExpense exp : pendingList) {
+                                        if ("SLACK".equalsIgnoreCase(exp.getSourceType())) {
+                                            String ch = exp.getSourceChannelOrSubject();
+                                            if (ch != null && (ch.equalsIgnoreCase(channelName) || ch.equalsIgnoreCase(channelId) || ch.replace("#", "").equalsIgnoreCase(channelName != null ? channelName.replace("#", "") : ""))) {
+                                                String snippet = exp.getRawSnippet() != null ? exp.getRawSnippet().trim().toLowerCase() : "";
+                                                if (!snippet.isEmpty()) {
+                                                    boolean stillExists = false;
+                                                    for (String act : activeTexts) {
+                                                        if (act.contains(snippet) || snippet.contains(act)) {
+                                                            stillExists = true;
+                                                            break;
+                                                        }
+                                                    }
+                                                    if (!stillExists) {
+                                                        exp.setStatus(com.vanguard.predictivebudget.model.ExpenseStatus.RETRACTED);
+                                                        exp.setAiReasoning((exp.getAiReasoning() != null ? exp.getAiReasoning() + "\n" : "") + "[RETRACTED]: Source Slack message was deleted.");
+                                                        predictedExpenseRepository.save(exp);
+                                                        log.info("Soft-retracted PredictedExpense ID {} ('{}') because source message was deleted from channel {}",
+                                                                exp.getId(), exp.getItemDescription(), channelName);
+                                                    }
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
