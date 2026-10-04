@@ -6,7 +6,6 @@ import {
   Settings2,
   Activity,
   LogOut,
-  Sparkles,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { loadPolicySettings, PolicySettingsModal } from './PolicySettingsModal';
@@ -64,39 +63,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <>
-      {/* ── Vanguard Slim Vertical Strip (Left Dock) ────────────────── */}
-      <aside className="relative flex flex-col justify-between w-[58px] h-screen bg-vanguard-navy border-r border-slate-800/80 text-slate-300 z-40 select-none flex-shrink-0 transition-all duration-200 py-3.5">
+      {/* ── Vanguard Slim Left Strip (Starts below the intact Top Navbar) ── */}
+      <aside className="relative flex flex-col justify-between w-[58px] h-full bg-vanguard-navy border-r border-slate-800/80 text-slate-300 z-20 select-none flex-shrink-0 transition-all duration-200 py-4">
         
-        {/* Top Section & Navigation Strip */}
-        <div className="flex flex-col items-center w-full space-y-3">
-          {/* Top Quick AI Intelligence Trigger (fills top space elegantly) */}
-          <div
-            className="relative w-full flex items-center justify-center h-10"
-            onMouseEnter={() => setHoveredTab('AI_STATUS')}
-            onMouseLeave={() => setHoveredTab(null)}
-          >
-            <div className="w-10 h-10 rounded-xl bg-vanguard-blue/40 border border-vanguard-gold/25 flex items-center justify-center text-vanguard-gold shadow-sm hover:border-vanguard-gold/50 transition cursor-default">
-              <Sparkles className="w-4 h-4 text-vanguard-gold animate-pulse" />
-            </div>
-
-            {/* AI Status Tooltip */}
-            {hoveredTab === 'AI_STATUS' && (
-              <div
-                className="absolute left-[66px] top-1/2 -translate-y-1/2 z-50 px-3 py-2 bg-vanguard-black/95 backdrop-blur-md text-white rounded-xl shadow-2xl text-xs whitespace-nowrap pointer-events-none animate-fade-in border border-vanguard-gold/20 flex flex-col gap-0.5"
-                style={{ filter: 'drop-shadow(0 10px 20px rgba(0,0,0,0.4))' }}
-              >
-                <div className="flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-vanguard-gold" />
-                  <span className="font-bold text-[13px] text-slate-100">Vanguard AI Active</span>
-                </div>
-                <span className="text-[10px] text-slate-400 font-medium">Autonomous Expense Early-Warning</span>
-                <div className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 bg-vanguard-black rotate-45 border-l border-b border-vanguard-gold/20" />
-              </div>
-            )}
-          </div>
-
-          {/* Navigation Icon List */}
-          <nav className="w-full flex flex-col items-center space-y-3 pt-1">
+        {/* Top Section: Navigation Items */}
+        <div className="flex flex-col items-center w-full">
+          <nav className="w-full flex flex-col items-center space-y-3">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id && item.id !== 'INTEGRATIONS';
@@ -190,7 +162,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </nav>
         </div>
 
-        {/* Bottom Strip Elements */}
+        {/* Bottom Strip Elements: Live Status & Logout */}
         <div className="flex flex-col items-center w-full space-y-3 pb-1">
           {/* Live AI Pulse Indicator */}
           <div
@@ -219,7 +191,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             >
               <button
                 onClick={logout}
-                className="w-8 h-8 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-white/10 flex items-center justify-center transition-all cursor-pointer"
+                className="w-10 h-10 rounded-xl text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/30 flex items-center justify-center transition-all cursor-pointer"
                 title={`Sign out (${user.fullName})`}
               >
                 <LogOut className="w-4 h-4 stroke-[1.8]" />
@@ -227,8 +199,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
               {hoveredTab === 'LOGOUT' && (
                 <div
-                  className="absolute left-[66px] top-1/2 -translate-y-1/2 z-50 px-3 py-1.5 bg-vanguard-black text-rose-300 rounded-xl shadow-xl text-xs whitespace-nowrap pointer-events-none border border-rose-500/30">
-                  <span className="font-semibold">Sign Out</span>
+                  className="absolute left-[66px] top-1/2 -translate-y-1/2 z-50 px-3 py-1.5 bg-vanguard-black text-rose-300 rounded-xl shadow-xl text-xs whitespace-nowrap pointer-events-none border border-rose-500/30"
+                  style={{ filter: 'drop-shadow(0 10px 20px rgba(0,0,0,0.4))' }}
+                >
+                  <span className="font-semibold">Sign Out ({user.fullName})</span>
                   <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-2 h-2 bg-vanguard-black rotate-45 border-l border-b border-rose-500/30" />
                 </div>
               )}

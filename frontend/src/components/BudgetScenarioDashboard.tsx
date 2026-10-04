@@ -97,121 +97,123 @@ export const BudgetScenarioDashboard: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex bg-vanguard-canvas font-sans overflow-x-hidden">
-      {/* ─── Expandable / Collapsible Modern Sidebar ────────── */}
-      <Sidebar
-        activeTab={activeNavTab}
-        onSelectTab={(tab) => {
-          if (tab === 'INTEGRATIONS') {
-            setIsIntegrationsOpen(true);
-          } else {
-            setActiveNavTab(tab);
-          }
-        }}
-        pendingSpendRequestsCount={pendingSpendCount}
-        isCollapsed={isSidebarCollapsed}
-        onToggleCollapse={() => setIsSidebarCollapsed((prev) => !prev)}
-        onOpenIntegrationsModal={() => setIsIntegrationsOpen(true)}
-        onPolicyChange={() => { /* SpendRequestsView reads from localStorage directly */ }}
+    <div className="h-screen flex flex-col bg-vanguard-canvas font-sans overflow-hidden">
+      {/* ─── 1. Full-Width Top Navbar (Completely intact, un-interrupted) ─── */}
+      <Header
+        onOpenIntegrations={() => setIsIntegrationsOpen(true)}
+        pendingCount={dynamicSummary.totalExpensesCount}
+        activeNavTab={activeNavTab === 'SPEND_REQUESTS' ? 'SPEND_REQUESTS' : 'FORECASTS'}
       />
 
-      {/* ─── Main Content Column ────────────────────────────── */}
-      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto">
-        {/* Sticky Header — sidebar collapse is driven by clicking the brand logo, no hamburger */}
-        <Header
-          onOpenIntegrations={() => setIsIntegrationsOpen(true)}
-          pendingCount={dynamicSummary.totalExpensesCount}
-          activeNavTab={activeNavTab === 'SPEND_REQUESTS' ? 'SPEND_REQUESTS' : 'FORECASTS'}
+      {/* ─── 2. Main Workspace Layout (Sidebar on Left + Content Area) ─── */}
+      <div className="flex-1 flex min-h-0 overflow-hidden">
+        {/* Slim Left Navigation Strip (starts directly below the navbar) */}
+        <Sidebar
+          activeTab={activeNavTab}
+          onSelectTab={(tab) => {
+            if (tab === 'INTEGRATIONS') {
+              setIsIntegrationsOpen(true);
+            } else {
+              setActiveNavTab(tab);
+            }
+          }}
+          pendingSpendRequestsCount={pendingSpendCount}
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapse={() => setIsSidebarCollapsed((prev) => !prev)}
+          onOpenIntegrationsModal={() => setIsIntegrationsOpen(true)}
+          onPolicyChange={() => { /* SpendRequestsView reads from localStorage directly */ }}
         />
 
-        {/* ─── Main Workspace ───────────────────────────────── */}
-        <main className="flex-1 max-w-screen-xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-5">
-          {/* Toast / Error banners */}
-          {notification && (
-            <div className={`mb-4 px-4 py-3 rounded-xl border flex items-center justify-between text-xs font-semibold shadow-sm ${
-              notification.type === 'success'
-                ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                : 'bg-rose-50 border-rose-200 text-rose-800'
-            }`}>
-              <div className="flex items-center gap-2">
-                <Zap className="w-4 h-4 flex-shrink-0" />
-                <span>{notification.message}</span>
-              </div>
-              <button onClick={() => setNotification(null)} className="ml-4 hover:underline">Dismiss</button>
-            </div>
-          )}
-          {error && (
-            <div className="mb-4 px-4 py-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 flex items-center justify-between text-xs shadow-sm">
-              <div className="flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-600" />
-                <span>{error}</span>
-              </div>
-              <button onClick={() => refetch()}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-100 hover:bg-rose-200 font-bold border border-rose-300 transition">
-                <RefreshCw className="w-3 h-3" /> Retry
-              </button>
-            </div>
-          )}
-
-          {/* Module 1: Spend Approvals & Virtual Cards */}
-          {activeNavTab === 'SPEND_REQUESTS' ? (
-            <SpendRequestsView onOpenIntegrations={() => setIsIntegrationsOpen(true)} />
-          ) : (
-            /* Module 2: Passive Runway & Expense Forecasts */
-            <>
-              {/* Row 1: Slack banner + Timeframe filter (side-by-side on desktop) */}
-              <div className="flex flex-col lg:flex-row gap-3 mb-4">
-                <div className="flex-1">
-                  <SlackConnectionBanner
-                    onOpenIntegrations={() => setIsIntegrationsOpen(true)}
-                    onSyncComplete={refetch}
-                  />
+        {/* Scrollable Dashboard View */}
+        <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+          <main className="flex-1 max-w-screen-xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-5">
+            {/* Toast / Error banners */}
+            {notification && (
+              <div className={`mb-4 px-4 py-3 rounded-xl border flex items-center justify-between text-xs font-semibold shadow-sm ${
+                notification.type === 'success'
+                  ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                  : 'bg-rose-50 border-rose-200 text-rose-800'
+              }`}>
+                <div className="flex items-center gap-2">
+                  <Zap className="w-4 h-4 flex-shrink-0" />
+                  <span>{notification.message}</span>
                 </div>
-                <div className="lg:w-auto">
-                  <TimeframeFilterBar
-                    selectedTimeframe={selectedTimeframe}
-                    onChangeTimeframe={setSelectedTimeframe}
-                    filteredCount={dynamicSummary.totalExpensesCount}
-                    filteredTotalSpend={dynamicSummary.totalPredictedSpend}
-                  />
+                <button onClick={() => setNotification(null)} className="ml-4 hover:underline">Dismiss</button>
+              </div>
+            )}
+            {error && (
+              <div className="mb-4 px-4 py-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 flex items-center justify-between text-xs shadow-sm">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-600" />
+                  <span>{error}</span>
                 </div>
+                <button onClick={() => refetch()}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-100 hover:bg-rose-200 font-bold border border-rose-300 transition">
+                  <RefreshCw className="w-3 h-3" /> Retry
+                </button>
               </div>
+            )}
 
-              {/* Row 2: 4 KPI Summary Cards */}
-              <div className="mb-4">
-                <SummaryCards summary={dynamicSummary} loading={loading} />
-              </div>
-
-              {/* Row 3: Parallel — Expense Feed (left) + Charts (right, sticky) */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
-                {/* LEFT: Expense card-list feed */}
-                <div className="lg:col-span-7">
-                  <ExpenseTable
-                    expenses={filteredExpenses}
-                    loading={loading}
-                    onSelectExpense={setSelectedExpense}
-                    activeTimeframeLabel={timeframeLabels[selectedTimeframe]}
-                    onExpenseUpdated={refetch}
-                  />
+            {/* Module 1: Spend Approvals & Virtual Cards */}
+            {activeNavTab === 'SPEND_REQUESTS' ? (
+              <SpendRequestsView onOpenIntegrations={() => setIsIntegrationsOpen(true)} />
+            ) : (
+              /* Module 2: Passive Runway & Expense Forecasts */
+              <>
+                {/* Row 1: Slack banner + Timeframe filter (side-by-side on desktop) */}
+                <div className="flex flex-col lg:flex-row gap-3 mb-4">
+                  <div className="flex-1">
+                    <SlackConnectionBanner
+                      onOpenIntegrations={() => setIsIntegrationsOpen(true)}
+                      onSyncComplete={refetch}
+                    />
+                  </div>
+                  <div className="lg:w-auto">
+                    <TimeframeFilterBar
+                      selectedTimeframe={selectedTimeframe}
+                      onChangeTimeframe={setSelectedTimeframe}
+                      filteredCount={dynamicSummary.totalExpensesCount}
+                      filteredTotalSpend={dynamicSummary.totalPredictedSpend}
+                    />
+                  </div>
                 </div>
 
-                {/* RIGHT: Sticky charts panel */}
-                <div className="lg:col-span-5 flex flex-col gap-4 lg:sticky lg:top-[73px] lg:self-start">
-                  <BudgetChart expenses={filteredExpenses} />
-                  <CategoryAllocationWidget expenses={filteredExpenses} />
+                {/* Row 2: 4 KPI Summary Cards */}
+                <div className="mb-4">
+                  <SummaryCards summary={dynamicSummary} loading={loading} />
                 </div>
-              </div>
-            </>
-          )}
-        </main>
 
-        {/* ─── Footer ───────────────────────────────────────── */}
-        <footer className="border-t border-slate-200/80 bg-white/70 backdrop-blur py-3 text-center text-xs text-slate-400 mt-auto">
-          <span className="inline-flex items-center gap-1.5">
-            <ShieldCheck className="w-3.5 h-3.5 text-vanguard-blue" />
-            Vanguard Intelligence · Autonomous Financial Early-Warning & Virtual Spend Cards
-          </span>
-        </footer>
+                {/* Row 3: Parallel — Expense Feed (left) + Charts (right, sticky) */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+                  {/* LEFT: Expense card-list feed */}
+                  <div className="lg:col-span-7">
+                    <ExpenseTable
+                      expenses={filteredExpenses}
+                      loading={loading}
+                      onSelectExpense={setSelectedExpense}
+                      activeTimeframeLabel={timeframeLabels[selectedTimeframe]}
+                      onExpenseUpdated={refetch}
+                    />
+                  </div>
+
+                  {/* RIGHT: Sticky charts panel */}
+                  <div className="lg:col-span-5 flex flex-col gap-4 lg:sticky lg:top-[16px] lg:self-start">
+                    <BudgetChart expenses={filteredExpenses} />
+                    <CategoryAllocationWidget expenses={filteredExpenses} />
+                  </div>
+                </div>
+              </>
+            )}
+          </main>
+
+          {/* ─── Footer ───────────────────────────────────────── */}
+          <footer className="border-t border-slate-200/80 bg-white/70 backdrop-blur py-3 text-center text-xs text-slate-400 mt-auto">
+            <span className="inline-flex items-center gap-1.5">
+              <ShieldCheck className="w-3.5 h-3.5 text-vanguard-blue" />
+              Vanguard Intelligence · Autonomous Financial Early-Warning & Virtual Spend Cards
+            </span>
+          </footer>
+        </div>
       </div>
 
       {/* ─── Drawers & Modals ───────────────────────────────── */}
