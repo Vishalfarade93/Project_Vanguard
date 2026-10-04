@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sliders, Building, Radio, CreditCard, TrendingUp } from 'lucide-react';
+import { Sliders, Building, Radio, LogOut, CreditCard, TrendingUp } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { VanguardLogo } from './VanguardLogo';
 
@@ -14,7 +14,7 @@ export const Header: React.FC<HeaderProps> = ({
   pendingCount = 0,
   activeNavTab = 'FORECASTS',
 }) => {
-  const { workspace, user } = useAuth();
+  const { workspace, user, logout } = useAuth();
 
   return (
     <header className="w-full border-b border-slate-200/80 bg-white/95 backdrop-blur-md sticky top-0 z-30 shadow-xs">
@@ -81,7 +81,7 @@ export const Header: React.FC<HeaderProps> = ({
               )}
             </div>
 
-            {/* User Info (Logout is in the left sidebar bottom) */}
+            {/* User + Logout button */}
             {user && (
               <div className="flex items-center pl-2 sm:pl-3 border-l border-slate-200 gap-2 sm:gap-2.5 flex-shrink-0">
                 <div className="hidden md:flex flex-col text-right leading-tight">
@@ -92,6 +92,13 @@ export const Header: React.FC<HeaderProps> = ({
                     {user.role.replace('_', ' ')}
                   </span>
                 </div>
+                <button
+                  onClick={logout}
+                  title="Sign out"
+                  className="p-1.5 text-slate-400 hover:text-rose-600 bg-slate-50 hover:bg-rose-50 rounded-lg border border-slate-200 hover:border-rose-200 transition cursor-pointer flex-shrink-0"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                </button>
               </div>
             )}
           </div>
