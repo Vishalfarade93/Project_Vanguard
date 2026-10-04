@@ -3,11 +3,11 @@ import {
   TrendingUp,
   CreditCard,
   Layers,
-  ShieldCheck,
-  Building2,
   Settings2,
-  ChevronLeft,
-  ChevronRight,
+  Menu,
+  Activity,
+  LogOut,
+  Building,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { loadPolicySettings, PolicySettingsModal } from './PolicySettingsModal';
@@ -18,8 +18,8 @@ interface SidebarProps {
   activeTab: ActiveNavTab;
   onSelectTab: (tab: ActiveNavTab) => void;
   pendingSpendRequestsCount?: number;
-  isCollapsed: boolean;
-  onToggleCollapse: () => void;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
   onOpenIntegrationsModal: () => void;
   onPolicyChange?: (threshold: number) => void;
 }
@@ -28,12 +28,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   activeTab,
   onSelectTab,
   pendingSpendRequestsCount = 0,
-  isCollapsed,
-  onToggleCollapse,
   onOpenIntegrationsModal,
   onPolicyChange,
 }) => {
-  const { workspace } = useAuth();
+  const { workspace, user, logout } = useAuth();
   const [policyOpen, setPolicyOpen] = useState(false);
   const [policy, setPolicy] = useState(() => loadPolicySettings());
   const [hoveredTab, setHoveredTab] = useState<string | null>(null);
@@ -42,64 +40,49 @@ export const Sidebar: React.FC<SidebarProps> = ({
     {
       id: 'FORECASTS' as ActiveNavTab,
       label: 'Forecasts & Runway',
-      sub: 'Passive AI financial ledger',
+      sub: 'Passive AI Financial Ledger',
       icon: TrendingUp,
       badge: null,
-      activeColor: 'from-amber-500 to-amber-400',
-      activeShadow: 'shadow-amber-500/30',
+      activeGradient: 'from-amber-400 to-amber-500',
+      shadowColor: 'rgba(245, 158, 11, 0.45)',
       onClick: () => onSelectTab('FORECASTS'),
     },
     {
       id: 'SPEND_REQUESTS' as ActiveNavTab,
-      label: 'Spend Hub & Cards',
-      sub: '/buy requests & virtual cards',
+      label: 'Spend Hub & Virtual Cards',
+      sub: '/buy Requests & Auto-Issued Cards',
       icon: CreditCard,
       badge: pendingSpendRequestsCount > 0 ? pendingSpendRequestsCount : null,
-      activeColor: 'from-amber-500 to-amber-400',
-      activeShadow: 'shadow-amber-500/30',
+      activeGradient: 'from-rose-400 via-pink-400 to-rose-500',
+      shadowColor: 'rgba(244, 63, 94, 0.45)',
       onClick: () => onSelectTab('SPEND_REQUESTS'),
     },
     {
       id: 'INTEGRATIONS' as ActiveNavTab,
       label: 'Integrations Hub',
-      sub: 'Slack channels & Gmail',
+      sub: 'Slack Channels & Gmail Sync',
       icon: Layers,
       badge: null,
-      activeColor: 'from-blue-600 to-indigo-500',
-      activeShadow: 'shadow-blue-500/30',
+      activeGradient: 'from-sky-400 to-blue-500',
+      shadowColor: 'rgba(56, 189, 248, 0.45)',
       onClick: () => onOpenIntegrationsModal(),
     },
   ];
 
   return (
     <>
-      <aside
-        className={`relative flex flex-col justify-between bg-white/95 backdrop-blur-xl border-r border-slate-200/90 text-slate-800 z-30 shadow-[4px_0_24px_rgba(0,0,0,0.02)] select-none flex-shrink-0 transition-all duration-300 ease-in-out ${
-          isCollapsed ? 'w-[72px]' : 'w-[240px]'
-        }`}
-      >
-        {/* ── Top Navigation Group (Direct icons — no duplicate logo section) ── */}
-        <div className="pt-4 pb-2">
-          {/* Subtle top indicator */}
-          <div className="px-3 mb-3 flex items-center justify-between">
-            {!isCollapsed && (
-              <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 px-2 font-display">
-                Navigation
-              </span>
-            )}
-            <button
-              onClick={onToggleCollapse}
-              className={`p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer ${
-                isCollapsed ? 'mx-auto' : ''
-              }`}
-              title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            >
-              {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-            </button>
+      {/* Outer Floating Container with top/bottom margin for the modern floating dock look */}
+      <aside className="relative flex flex-col justify-between my-3 ml-3 w-[72px] h-[calc(100vh-24px)] bg-[#1e202e] text-slate-300 rounded-[32px] shadow-[0_12px_32px_rgba(0,0,0,0.18)] z-40 select-none flex-shrink-0 transition-all duration-300 py-5">
+        
+        {/* ── Top Group: Menu / Nav Items ────────────────────────── */}
+        <div className="flex flex-col items-center w-full space-y-4">
+          {/* Top Menu Icon */}
+          <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 transition-all cursor-pointer">
+            <Menu className="w-5 h-5 stroke-[2]" />
           </div>
 
-          {/* Nav Items Rail */}
-          <nav className="px-2 space-y-2">
+          {/* Nav Items with Smooth Organic Curved Notch */}
+          <nav className="w-full flex flex-col items-center space-y-3 pt-2">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id && item.id !== 'INTEGRATIONS';
@@ -107,149 +90,180 @@ export const Sidebar: React.FC<SidebarProps> = ({
               return (
                 <div
                   key={item.id}
-                  className="relative group"
+                  className="relative w-full flex items-center justify-center"
                   onMouseEnter={() => setHoveredTab(item.id)}
                   onMouseLeave={() => setHoveredTab(null)}
                 >
+                  {/* Organic Curved Notch Background (Smooth Bezier Bulb that protrudes to the right) */}
+                  {isActive && (
+                    <svg
+                      width="26"
+                      height="80"
+                      viewBox="0 0 26 80"
+                      fill="none"
+                      className="absolute -right-[25px] top-1/2 -translate-y-1/2 pointer-events-none z-10"
+                    >
+                      <path
+                        d="M0,0 C0,14 24,18 24,40 C24,62 0,66 0,80 L0,0 Z"
+                        fill="#1e202e"
+                      />
+                    </svg>
+                  )}
+
+                  {/* Icon Button */}
                   <button
                     onClick={item.onClick}
-                    className={`w-full flex items-center rounded-2xl transition-all duration-200 cursor-pointer text-left relative ${
-                      isCollapsed
-                        ? 'p-2 justify-center'
-                        : 'px-3 py-2.5 gap-3'
-                    } ${
+                    className={`relative z-20 flex items-center justify-center transition-all duration-300 cursor-pointer ${
                       isActive
-                        ? isCollapsed
-                          ? 'bg-transparent'
-                          : 'bg-amber-50/80 border border-amber-200/60 shadow-sm'
-                        : 'hover:bg-slate-100/80 text-slate-600 hover:text-slate-900'
+                        ? 'w-12 h-12 rounded-full translate-x-2.5 text-white scale-105'
+                        : 'w-11 h-11 rounded-2xl text-slate-400 hover:text-white hover:bg-white/10'
                     }`}
+                    style={
+                      isActive
+                        ? {
+                            background: `linear-gradient(135deg, ${item.activeGradient})`,
+                            boxShadow: `0 8px 20px ${item.shadowColor}`,
+                          }
+                        : undefined
+                    }
                   >
-                    {/* Active Icon Circle / Notch Bubble */}
-                    <div
-                      className={`relative flex items-center justify-center transition-all duration-300 ${
-                        isActive
-                          ? `w-11 h-11 rounded-2xl bg-gradient-to-tr ${item.activeColor} text-slate-950 shadow-lg ${item.activeShadow} ring-2 ring-white scale-105`
-                          : 'w-10 h-10 rounded-xl text-slate-500 group-hover:text-slate-800 group-hover:bg-white group-hover:shadow-sm'
-                      }`}
-                    >
-                      <Icon className={`w-5 h-5 transition-transform ${isActive ? 'stroke-[2.2]' : 'stroke-[1.8]'}`} />
+                    <Icon className={`w-5 h-5 ${isActive ? 'stroke-[2.4] drop-shadow-sm' : 'stroke-[1.8]'}`} />
 
-                      {/* Notification badge on icon (collapsed or mobile) */}
-                      {item.badge !== null && (
-                        <span className="absolute -top-1 -right-1 flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-rose-500 text-[10px] font-extrabold text-white ring-2 ring-white shadow-sm font-mono animate-bounce">
-                          {item.badge}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Expanded Label & Subtitle */}
-                    {!isCollapsed && (
-                      <div className="flex-1 min-w-0 overflow-hidden pr-1">
-                        <div className="flex items-center justify-between">
-                          <span className={`text-xs font-bold leading-snug truncate ${
-                            isActive ? 'text-slate-900' : 'text-slate-700 group-hover:text-slate-900'
-                          }`}>
-                            {item.label}
-                          </span>
-                          {isActive && (
-                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                          )}
-                        </div>
-                        <span className="text-[10px] text-slate-400 block truncate font-medium mt-0.5">
-                          {item.sub}
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Expanded Badge */}
-                    {!isCollapsed && item.badge !== null && (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-400 text-slate-950 shadow-sm font-mono shrink-0">
+                    {/* Pending Request Indicator Badge */}
+                    {item.badge !== null && (
+                      <span className="absolute -top-1 -right-1 flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-rose-500 text-[10px] font-extrabold text-white ring-2 ring-[#1e202e] shadow-sm font-mono animate-bounce">
                         {item.badge}
                       </span>
                     )}
                   </button>
 
-                  {/* Sleek Tooltip for Collapsed State */}
-                  {isCollapsed && hoveredTab === item.id && (
+                  {/* Floating Tooltip Bubble */}
+                  {hoveredTab === item.id && (
                     <div
-                      className="absolute left-[76px] top-1/2 -translate-y-1/2 z-50 px-3 py-2 bg-slate-900 text-white rounded-xl shadow-xl text-xs font-semibold whitespace-nowrap pointer-events-none animate-fade-in flex items-center gap-2 border border-slate-700/60"
-                      style={{ filter: 'drop-shadow(0 10px 15px rgba(0,0,0,0.15))' }}
+                      className="absolute left-[84px] top-1/2 -translate-y-1/2 z-50 px-3.5 py-2.5 bg-slate-900/95 backdrop-blur-md text-white rounded-2xl shadow-2xl text-xs whitespace-nowrap pointer-events-none animate-fade-in border border-white/15 flex flex-col gap-0.5"
+                      style={{ filter: 'drop-shadow(0 15px 25px rgba(0,0,0,0.3))' }}
                     >
-                      <span>{item.label}</span>
-                      {item.badge !== null && (
-                        <span className="px-1.5 py-0.2 rounded-full bg-amber-400 text-slate-950 text-[10px] font-mono font-bold">
-                          {item.badge}
-                        </span>
-                      )}
-                      {/* Triangle pointer */}
-                      <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-2 h-2 bg-slate-900 rotate-45 border-l border-b border-slate-700/60" />
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-[13px]">{item.label}</span>
+                        {item.badge !== null && (
+                          <span className="px-1.5 py-0.5 rounded-full bg-rose-500 text-white text-[10px] font-mono font-extrabold">
+                            {item.badge} Pending
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[10px] text-slate-400 font-medium">{item.sub}</span>
+                      {/* Triangle Pointer */}
+                      <div className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 bg-slate-900 rotate-45 border-l border-b border-white/15" />
                     </div>
                   )}
                 </div>
               );
             })}
+
+            {/* Policy Settings Button */}
+            <div
+              className="relative w-full flex items-center justify-center pt-2"
+              onMouseEnter={() => setHoveredTab('POLICY')}
+              onMouseLeave={() => setHoveredTab(null)}
+            >
+              <button
+                onClick={() => setPolicyOpen(true)}
+                className="w-11 h-11 rounded-2xl flex items-center justify-center text-slate-400 hover:text-emerald-400 hover:bg-white/10 transition-all cursor-pointer"
+              >
+                <Settings2 className="w-5 h-5 stroke-[1.8]" />
+              </button>
+
+              {/* Tooltip */}
+              {hoveredTab === 'POLICY' && (
+                <div
+                  className="absolute left-[84px] top-1/2 -translate-y-1/2 z-50 px-3.5 py-2.5 bg-slate-900/95 backdrop-blur-md text-white rounded-2xl shadow-2xl text-xs whitespace-nowrap pointer-events-none animate-fade-in border border-white/15 flex flex-col gap-0.5"
+                  style={{ filter: 'drop-shadow(0 15px 25px rgba(0,0,0,0.3))' }}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-[13px]">Policy Settings</span>
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-mono font-bold border border-emerald-500/30">
+                      ${policy.threshold} Cap
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-slate-400 font-medium">Virtual Card Single-Use Threshold</span>
+                  <div className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 bg-slate-900 rotate-45 border-l border-b border-white/15" />
+                </div>
+              )}
+            </div>
           </nav>
         </div>
 
-        {/* ── Bottom Section (Policy, Workspace & Settings) ──────────────── */}
-        <div className="p-2.5 border-t border-slate-200/80 space-y-1.5 bg-slate-50/50">
-          {/* Policy settings button */}
-          <div className="relative group">
-            <button
-              onClick={() => setPolicyOpen(true)}
-              className={`w-full flex items-center rounded-2xl p-2 transition cursor-pointer group hover:bg-white hover:shadow-sm ${
-                isCollapsed ? 'justify-center' : 'gap-3 px-3 py-2.5'
-              }`}
-            >
-              <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-200/60 group-hover:scale-105 transition-transform">
-                <Settings2 className="w-4 h-4" />
-              </div>
-              {!isCollapsed && (
-                <div className="flex-1 text-left min-w-0">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-700 group-hover:text-slate-900 block truncate">Policy Settings</span>
-                    <span className="text-[10px] px-1.5 py-0.5 rounded font-bold font-mono bg-emerald-100 text-emerald-800">
-                      ${policy.threshold}
-                    </span>
-                  </div>
-                  <span className="text-[10px] text-slate-400 font-medium block truncate">
-                    Single-use card ceiling
-                  </span>
-                </div>
-              )}
-            </button>
+        {/* ── Bottom Group: Status / Workspace / User / Sign Out ──── */}
+        <div className="flex flex-col items-center w-full space-y-3">
+          {/* Live Pulse Indicator */}
+          <div
+            className="relative flex items-center justify-center group cursor-pointer"
+            onMouseEnter={() => setHoveredTab('STATUS')}
+            onMouseLeave={() => setHoveredTab(null)}
+          >
+            <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+              <Activity className="w-4 h-4 animate-pulse" />
+            </div>
 
-            {/* Tooltip for Policy settings when collapsed */}
-            {isCollapsed && (
-              <div className="absolute left-[76px] top-1/2 -translate-y-1/2 hidden group-hover:flex z-50 px-3 py-2 bg-slate-900 text-white rounded-xl shadow-xl text-xs font-semibold whitespace-nowrap pointer-events-none items-center gap-2 border border-slate-700/60">
-                <span>Policy Settings · Limit <strong>${policy.threshold}</strong></span>
-                <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-2 h-2 bg-slate-900 rotate-45 border-l border-b border-slate-700/60" />
+            {hoveredTab === 'STATUS' && (
+              <div
+                className="absolute left-[84px] top-1/2 -translate-y-1/2 z-50 px-3 py-2 bg-slate-900 text-white rounded-xl shadow-xl text-xs whitespace-nowrap pointer-events-none animate-fade-in border border-white/15"
+                style={{ filter: 'drop-shadow(0 10px 20px rgba(0,0,0,0.3))' }}
+              >
+                <span className="font-bold text-emerald-400">Vanguard AI Engine Online</span>
+                <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-2 h-2 bg-slate-900 rotate-45 border-l border-b border-white/15" />
               </div>
             )}
           </div>
 
-          {/* Active Policy Status Chip (Expanded Only) */}
-          {!isCollapsed && (
-            <div className="px-3 py-2 rounded-xl bg-white border border-slate-200/70 shadow-xs flex items-center justify-between">
-              <div className="flex items-center gap-2 text-[11px] font-bold text-slate-700">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Auto-Issue Guard</span>
-              </div>
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                Active
-              </span>
+          {/* Workspace Pill / Avatar */}
+          <div
+            className="relative flex items-center justify-center group cursor-pointer"
+            onMouseEnter={() => setHoveredTab('WORKSPACE')}
+            onMouseLeave={() => setHoveredTab(null)}
+          >
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-500 text-white font-extrabold text-xs flex items-center justify-center shadow-md">
+              {workspace?.name?.charAt(0) || 'V'}
             </div>
-          )}
 
-          {/* Workspace Pill */}
-          {!isCollapsed && (
-            <div className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs text-slate-500">
-              <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-              <div className="min-w-0 flex-1">
-                <span className="font-semibold text-slate-700 block truncate text-[11px]">{workspace?.name || 'Vanguard HQ'}</span>
-                <span className="text-[10px] text-slate-400 block font-mono">ID #{workspace?.id || 1}</span>
+            {hoveredTab === 'WORKSPACE' && (
+              <div
+                className="absolute left-[84px] top-1/2 -translate-y-1/2 z-50 px-3.5 py-2 bg-slate-900 text-white rounded-2xl shadow-xl text-xs whitespace-nowrap pointer-events-none animate-fade-in border border-white/15 flex flex-col"
+                style={{ filter: 'drop-shadow(0 10px 20px rgba(0,0,0,0.3))' }}
+              >
+                <div className="flex items-center gap-1.5 font-bold">
+                  <Building className="w-3 h-3 text-indigo-400" />
+                  <span>{workspace?.name || 'Vanguard HQ'}</span>
+                </div>
+                <span className="text-[10px] text-slate-400 font-mono mt-0.5">Workspace #{workspace?.id || 1}</span>
+                <div className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 bg-slate-900 rotate-45 border-l border-b border-white/15" />
               </div>
+            )}
+          </div>
+
+          {/* User Sign Out Button */}
+          {user && (
+            <div
+              className="relative flex items-center justify-center group"
+              onMouseEnter={() => setHoveredTab('LOGOUT')}
+              onMouseLeave={() => setHoveredTab(null)}
+            >
+              <button
+                onClick={logout}
+                className="w-10 h-10 rounded-2xl text-slate-400 hover:text-rose-400 hover:bg-white/10 flex items-center justify-center transition-all cursor-pointer"
+              >
+                <LogOut className="w-4 h-4 stroke-[1.8]" />
+              </button>
+
+              {hoveredTab === 'LOGOUT' && (
+                <div
+                  className="absolute left-[84px] top-1/2 -translate-y-1/2 z-50 px-3 py-1.5 bg-slate-900 text-rose-300 rounded-xl shadow-xl text-xs whitespace-nowrap pointer-events-none animate-fade-in border border-white/15"
+                  style={{ filter: 'drop-shadow(0 10px 20px rgba(0,0,0,0.3))' }}
+                >
+                  <span className="font-semibold">Sign Out ({user.fullName})</span>
+                  <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-2 h-2 bg-slate-900 rotate-45 border-l border-b border-white/15" />
+                </div>
+              )}
             </div>
           )}
         </div>
