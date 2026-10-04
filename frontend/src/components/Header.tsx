@@ -1,40 +1,28 @@
 import React from 'react';
-import { Sliders, Building, LogOut, Radio, Menu, CreditCard, TrendingUp } from 'lucide-react';
+import { Sliders, Building, LogOut, Radio, CreditCard, TrendingUp } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { VanguardLogo } from './VanguardLogo';
 
 interface HeaderProps {
   onOpenIntegrations: () => void;
   pendingCount?: number;
-  onToggleSidebar?: () => void;
   activeNavTab?: 'FORECASTS' | 'SPEND_REQUESTS';
 }
 
 export const Header: React.FC<HeaderProps> = ({
   onOpenIntegrations,
   pendingCount = 0,
-  onToggleSidebar,
   activeNavTab = 'FORECASTS',
 }) => {
   const { workspace, user, logout } = useAuth();
 
   return (
-    <header className="border-b border-slate-200/80 bg-white/95 backdrop-blur-md sticky top-0 z-30 shadow-sm">
+    <header className="border-b border-slate-200/80 bg-white/95 backdrop-blur-md sticky top-0 z-30 shadow-xs">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-14 sm:h-16 gap-3 sm:gap-4 flex-nowrap">
 
-          {/* Brand + Toggle */}
+          {/* Brand Logo & Active Module Indicator */}
           <div className="flex items-center gap-2.5 sm:gap-3.5 flex-shrink-0 min-w-0">
-            {onToggleSidebar && (
-              <button
-                onClick={onToggleSidebar}
-                className="p-1.5 rounded-lg text-slate-500 hover:text-vanguard-navy hover:bg-slate-100 transition cursor-pointer"
-                title="Toggle Sidebar Navigation"
-              >
-                <Menu className="w-5 h-5" />
-              </button>
-            )}
-
             <VanguardLogo size="md" />
 
             {/* Active Module Indicator Badge */}
@@ -57,7 +45,7 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           </div>
 
-          {/* Nav Actions - strict single row, perfectly vertically aligned */}
+          {/* Nav Actions - strict single row */}
           <div className="flex items-center gap-2 sm:gap-2.5 flex-nowrap flex-shrink-0">
             {/* Workspace badge */}
             {workspace && (
