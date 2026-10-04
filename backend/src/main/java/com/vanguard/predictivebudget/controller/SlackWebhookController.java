@@ -27,6 +27,7 @@ public class SlackWebhookController {
     private final WorkspaceRepository workspaceRepository;
     private final ExpenseExtractionService expenseExtractionService;
     private final com.vanguard.predictivebudget.repository.PredictedExpenseRepository predictedExpenseRepository;
+    private final com.vanguard.predictivebudget.service.SpendRequestService spendRequestService;
     private final ObjectMapper objectMapper;
 
     /**
@@ -85,6 +86,15 @@ public class SlackWebhookController {
                     if (!content.trim().isEmpty()) {
                         String channel = eventNode.has("channel") ? eventNode.get("channel").asText() : "#slack";
                         String threadTs = eventNode.has("thread_ts") ? eventNode.get("thread_ts").asText(null) : null;
+                        String trimmed = content.trim();
+
+                        // Route /buy commands directly to Spend Request & Virtual Card engine (NOT forecast ledger)
+                        if (trimmed.startsWith("/buy")) {
+                            log.info("Routing active /buy spend request from {} to SpendRequestService: '{}'", sender, trimmed);
+                            spendRequestService.processBuyCommand(trimmed, sender, channel, targetWorkspaceId);
+                            return ResponseEntity.ok(Collections.singletonMap("status", "spend_request_created"));
+                        }
+
                         RawMessage rawMessage = RawMessage.builder()
                                 .workspaceId(targetWorkspaceId)
                                 .content(content)

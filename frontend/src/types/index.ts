@@ -2,6 +2,41 @@ export type ExpenseStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'RETRACTED';
 export type SourceType = 'SLACK' | 'GMAIL' | 'MANUAL' | 'WEBHOOK';
 export type TimeframeOption = '7d' | '30d' | '90d' | 'future' | 'history' | 'all';
 
+export type SpendRequestStatus =
+  | 'PENDING_APPROVAL'
+  | 'EXCEEDS_POLICY'
+  | 'APPROVED_CARD_ISSUED'
+  | 'REJECTED'
+  | 'CARD_SWIPED'
+  | 'RECONCILED';
+
+export interface SpendRequest {
+  id: number;
+  workspaceId: number;
+  requesterName: string;
+  requesterChannel?: string;
+  itemDescription: string;
+  department: string;
+  requestedAmount?: number;
+  approvedAmount?: number;
+  policyThreshold: number;
+  status: SpendRequestStatus;
+  rejectionReason?: string;
+  cardToken?: string;
+  maskedCardNumber?: string;
+  cardholderName?: string;
+  cvv?: string;
+  expiryDate?: string;
+  mccCategoryLock?: string;
+  isBurned?: boolean;
+  actualChargedAmount?: number;
+  merchantName?: string;
+  receiptSnippet?: string;
+  receiptVerified?: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface PredictedExpense {
   id: number;
   workspaceId: number;

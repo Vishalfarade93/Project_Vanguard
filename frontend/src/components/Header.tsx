@@ -1,14 +1,21 @@
 import React from 'react';
-import { Sliders, Building, LogOut, Radio } from 'lucide-react';
+import { Sliders, Building, LogOut, Radio, Menu, CreditCard, TrendingUp } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { VanguardLogo } from './VanguardLogo';
 
 interface HeaderProps {
   onOpenIntegrations: () => void;
   pendingCount?: number;
+  onToggleSidebar?: () => void;
+  activeNavTab?: 'FORECASTS' | 'SPEND_REQUESTS';
 }
 
-export const Header: React.FC<HeaderProps> = ({ onOpenIntegrations, pendingCount = 0 }) => {
+export const Header: React.FC<HeaderProps> = ({
+  onOpenIntegrations,
+  pendingCount = 0,
+  onToggleSidebar,
+  activeNavTab = 'FORECASTS',
+}) => {
   const { workspace, user, logout } = useAuth();
 
   return (
@@ -16,13 +23,37 @@ export const Header: React.FC<HeaderProps> = ({ onOpenIntegrations, pendingCount
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-14 sm:h-16 gap-3 sm:gap-4 flex-nowrap">
 
-          {/* Brand */}
-          <div className="flex items-center gap-3.5 flex-shrink-0 min-w-0">
+          {/* Brand + Toggle */}
+          <div className="flex items-center gap-2.5 sm:gap-3.5 flex-shrink-0 min-w-0">
+            {onToggleSidebar && (
+              <button
+                onClick={onToggleSidebar}
+                className="p-1.5 rounded-lg text-slate-500 hover:text-vanguard-navy hover:bg-slate-100 transition cursor-pointer"
+                title="Toggle Sidebar Navigation"
+              >
+                <Menu className="w-5 h-5" />
+              </button>
+            )}
+
             <VanguardLogo size="md" />
-            <div className="hidden xl:block border-l border-slate-200 pl-3.5">
-              <p className="text-[10px] text-slate-400 font-sans leading-none">
-                Autonomous spend early-warning · Slack & Email
-              </p>
+
+            {/* Active Module Indicator Badge */}
+            <div className={`hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-semibold font-display ${
+              activeNavTab === 'SPEND_REQUESTS'
+                ? 'bg-amber-50 text-amber-900 border-amber-300'
+                : 'bg-slate-100 text-slate-700 border-slate-200'
+            }`}>
+              {activeNavTab === 'SPEND_REQUESTS' ? (
+                <>
+                  <CreditCard className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Spend Approvals &amp; Cards</span>
+                </>
+              ) : (
+                <>
+                  <TrendingUp className="w-3.5 h-3.5 text-vanguard-blue" />
+                  <span>Forecast Intelligence &amp; Runway</span>
+                </>
+              )}
             </div>
           </div>
 
