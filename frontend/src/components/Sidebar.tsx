@@ -16,6 +16,7 @@ interface SidebarProps {
   isCollapsed?: boolean;
   onToggleCollapse?: () => void;
   onOpenIntegrationsModal: () => void;
+  isIntegrationsOpen?: boolean;
   onPolicyChange?: (threshold: number) => void;
 }
 
@@ -24,11 +25,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onSelectTab,
   pendingSpendRequestsCount = 0,
   onOpenIntegrationsModal,
+  isIntegrationsOpen = false,
   onPolicyChange,
 }) => {
   const [policyOpen, setPolicyOpen] = useState(false);
   const [policy, setPolicy] = useState(() => loadPolicySettings());
   const [hoveredTab, setHoveredTab] = useState<string | null>(null);
+
+  const isModalOpen = isIntegrationsOpen || policyOpen;
 
   const navItems = [
     {
@@ -37,6 +41,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       sub: 'AI Predictive Financial Ledger',
       icon: TrendingUp,
       badge: null,
+      isActive: activeTab === 'FORECASTS' && !isModalOpen,
       onClick: () => onSelectTab('FORECASTS'),
     },
     {
@@ -45,6 +50,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       sub: '/buy Requests & Auto-Issued Cards',
       icon: CreditCard,
       badge: pendingSpendRequestsCount > 0 ? pendingSpendRequestsCount : null,
+      isActive: activeTab === 'SPEND_REQUESTS' && !isModalOpen,
       onClick: () => onSelectTab('SPEND_REQUESTS'),
     },
     {
@@ -53,6 +59,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       sub: 'Slack & Email Intelligence',
       icon: Layers,
       badge: null,
+      isActive: isIntegrationsOpen,
       onClick: () => onOpenIntegrationsModal(),
     },
   ];
@@ -62,9 +69,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* ── Vertically Centered Aesthetic Floating Dock for 4 Elements ── */}
       <div className="flex flex-col justify-center items-center px-3.5 z-30 select-none flex-shrink-0">
         <aside className="relative flex flex-col items-center p-2 rounded-2xl bg-white border border-slate-200/90 shadow-[0_8px_30px_rgba(0,0,0,0.06)] space-y-2.5 transition-all duration-300">
+          
+          {/* First 3 Navigation Items */}
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = activeTab === item.id && item.id !== 'INTEGRATIONS';
 
             return (
               <div
@@ -74,21 +82,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 onMouseLeave={() => setHoveredTab(null)}
               >
                 {/* Active Indicator Bar on left */}
-                {isActive && (
-                  <span className="absolute -left-2 top-2 bottom-2 w-1 rounded-r-full bg-vanguard-navy shadow-sm" />
+                {item.isActive && (
+                  <span className="absolute -left-2 top-2 bottom-2 w-1 rounded-r-full bg-vanguard-navy shadow-sm transition-all" />
                 )}
 
                 {/* Icon Button */}
                 <button
                   onClick={item.onClick}
                   className={`relative flex items-center justify-center w-11 h-11 rounded-xl transition-all duration-200 cursor-pointer ${
-                    isActive
+                    item.isActive
                       ? 'bg-vanguard-navy text-vanguard-gold shadow-md scale-105 font-bold'
                       : 'text-slate-400 hover:text-slate-800 hover:bg-slate-100/90 hover:scale-102'
                   }`}
                   title={item.label}
                 >
-                  <Icon className={`w-5 h-5 ${isActive ? 'stroke-[2.4]' : 'stroke-[1.8]'}`} />
+                  <Icon className={`w-5 h-5 ${item.isActive ? 'stroke-[2.4]' : 'stroke-[1.8]'}`} />
 
                   {/* Pending Request Dot / Badge */}
                   {item.badge !== null && (
@@ -121,18 +129,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
             );
           })}
 
-          {/* 4th Element: Policy Settings */}
+          {/* 4th Element: Policy Settings (exact same active behavior) */}
           <div
             className="relative flex items-center justify-center pt-1 border-t border-slate-100 w-full"
             onMouseEnter={() => setHoveredTab('POLICY')}
             onMouseLeave={() => setHoveredTab(null)}
           >
+            {/* Active Indicator Bar on left when policy modal is open */}
+            {policyOpen && (
+              <span className="absolute -left-2 top-3 bottom-2 w-1 rounded-r-full bg-vanguard-navy shadow-sm transition-all" />
+            )}
+
             <button
               onClick={() => setPolicyOpen(true)}
-              className="w-11 h-11 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-800 hover:bg-slate-100/90 hover:scale-102 transition-all cursor-pointer"
+              className={`relative flex items-center justify-center w-11 h-11 rounded-xl transition-all duration-200 cursor-pointer ${
+                policyOpen
+                  ? 'bg-vanguard-navy text-vanguard-gold shadow-md scale-105 font-bold'
+                  : 'text-slate-400 hover:text-slate-800 hover:bg-slate-100/90 hover:scale-102'
+              }`}
               title="Policy Settings"
             >
-              <Settings2 className="w-5 h-5 stroke-[1.8]" />
+              <Settings2 className={`w-5 h-5 ${policyOpen ? 'stroke-[2.4]' : 'stroke-[1.8]'}`} />
             </button>
 
             {/* Policy Tooltip */}

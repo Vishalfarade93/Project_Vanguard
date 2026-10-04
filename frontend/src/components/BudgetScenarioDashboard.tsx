@@ -121,6 +121,7 @@ export const BudgetScenarioDashboard: React.FC = () => {
           isCollapsed={isSidebarCollapsed}
           onToggleCollapse={() => setIsSidebarCollapsed((prev) => !prev)}
           onOpenIntegrationsModal={() => setIsIntegrationsOpen(true)}
+          isIntegrationsOpen={isIntegrationsOpen}
           onPolicyChange={() => { /* SpendRequestsView reads from localStorage directly */ }}
         />
 
