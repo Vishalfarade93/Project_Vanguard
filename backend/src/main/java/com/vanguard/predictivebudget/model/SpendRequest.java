@@ -57,6 +57,9 @@ public class SpendRequest {
     @Column(name = "card_token")
     private String cardToken;
 
+    @Column(name = "pan")
+    private String pan;
+
     @Column(name = "masked_card_number")
     private String maskedCardNumber;
 

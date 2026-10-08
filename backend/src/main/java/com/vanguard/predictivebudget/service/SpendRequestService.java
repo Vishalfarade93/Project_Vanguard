@@ -125,6 +125,7 @@ public class SpendRequestService {
         LithicClientService.LithicCardResult lithicCard = lithicClientService.createSingleUseCard(finalCap, memo, cardholder);
 
         request.setCardToken(lithicCard.getCardToken());
+        request.setPan(lithicCard.getPan());
         request.setMaskedCardNumber(lithicCard.getMaskedPan());
         request.setCardholderName(cardholder);
         request.setCvv(lithicCard.getCvv());
@@ -173,9 +174,9 @@ public class SpendRequestService {
 
         String merchant = merchantName != null ? merchantName : "Amazon Business / Approved Vendor";
 
-        // Trigger Lithic Sandbox Authorization Simulator
+        // Trigger Lithic Sandbox Authorization Simulator with unmasked PAN and Card Token
         LithicClientService.LithicAuthResult authResult = lithicClientService.simulateSwipeAuthorization(
-                request.getMaskedCardNumber(), amount, merchant);
+                request.getPan(), amount, merchant, request.getCardToken());
 
         if (!authResult.isApproved()) {
             throw new IllegalStateException(String.format("Lithic Sandbox declined transaction: %s (Status: %s)",

@@ -50,6 +50,7 @@ public class LithicClientService {
         private String result;
         private String statusCode;
         private boolean isApproved;
+        private boolean isCleared;
         private String rawResponse;
     }
 
@@ -116,41 +117,96 @@ public class LithicClientService {
     }
 
     /**
-     * Simulate a real card purchase swipe against Lithic's simulate/authorize endpoint.
+     * Retrieve full card details (including PAN) from Lithic API by card token.
      */
-    public LithicAuthResult simulateSwipeAuthorization(String pan, BigDecimal amount, String merchantDescriptor) {
+    public String getCardPan(String cardToken) {
+        if (cardToken == null || cardToken.isBlank() || cardToken.startsWith("fallback_")) {
+            return null;
+        }
+        try {
+            HttpHeaders headers = buildAuthHeaders();
+            HttpEntity<?> request = new HttpEntity<>(headers);
+            String url = baseUrl + "/cards/" + cardToken;
+
+            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.GET, request, String.class);
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                JsonNode root = objectMapper.readTree(response.getBody());
+                return root.path("pan").asText(null);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to retrieve PAN for token {}: {}", cardToken, e.getMessage());
+        }
+        return null;
+    }
+
+    /**
+     * Simulate a real card purchase swipe against Lithic's simulate/authorize AND clearing endpoints.
+     * This settles the transaction on Lithic, updates "Last Used" and records the transaction in dashboard.
+     */
+    public LithicAuthResult simulateSwipeAuthorization(String rawPan, BigDecimal amount, String merchantDescriptor, String cardToken) {
         log.info("Simulating live purchase swipe via Lithic Authorization Simulator for amount: ${}", amount);
         
         long amountCents = amount.multiply(new BigDecimal("100")).longValue();
 
+        // Ensure we have a clean unmasked PAN
+        String pan = rawPan;
+        if (pan == null || pan.contains("•") || pan.contains("*")) {
+            if (cardToken != null && !cardToken.isBlank()) {
+                pan = getCardPan(cardToken);
+            }
+        }
+        if (pan != null) {
+            pan = pan.replaceAll("[^0-9]", "");
+        }
+
         try {
             HttpHeaders headers = buildAuthHeaders();
 
-            Map<String, Object> body = new HashMap<>();
-            body.put("pan", pan);
-            body.put("amount", amountCents);
-            body.put("descriptor", merchantDescriptor != null ? merchantDescriptor : "AMAZON BUSINESS RETAIL");
+            Map<String, Object> authBody = new HashMap<>();
+            authBody.put("pan", pan);
+            authBody.put("amount", amountCents);
+            authBody.put("descriptor", merchantDescriptor != null ? merchantDescriptor : "AMAZON BUSINESS RETAIL");
 
-            HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
-            String url = baseUrl + "/simulate/authorize";
+            HttpEntity<Map<String, Object>> authRequest = new HttpEntity<>(authBody, headers);
+            String authUrl = baseUrl + "/simulate/authorize";
 
-            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, request, String.class);
+            ResponseEntity<String> authResponse = restTemplate.exchange(authUrl, HttpMethod.POST, authRequest, String.class);
 
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                JsonNode root = objectMapper.readTree(response.getBody());
+            if (authResponse.getStatusCode().is2xxSuccessful() && authResponse.getBody() != null) {
+                JsonNode root = objectMapper.readTree(authResponse.getBody());
                 String result = root.path("result").asText("APPROVED");
                 String statusCode = root.path("status_code").asText("00");
-                String token = root.path("token").asText();
+                String authToken = root.path("token").asText();
 
                 boolean isApproved = "APPROVED".equalsIgnoreCase(result) || "00".equals(statusCode);
-                log.info("Lithic Simulated Swipe Result: {} (Code: {}, Token: {})", result, statusCode, token);
+                log.info("Lithic Simulated Swipe Result: {} (Code: {}, Token: {})", result, statusCode, authToken);
+
+                boolean isCleared = false;
+                // Settle / Clear the transaction so Lithic records it as Last Used and creates Transaction entry
+                if (isApproved && authToken != null && !authToken.isBlank()) {
+                    try {
+                        Map<String, Object> clearBody = new HashMap<>();
+                        clearBody.put("token", authToken);
+                        clearBody.put("amount", amountCents);
+
+                        HttpEntity<Map<String, Object>> clearRequest = new HttpEntity<>(clearBody, headers);
+                        String clearUrl = baseUrl + "/simulate/clearing";
+
+                        ResponseEntity<String> clearResponse = restTemplate.exchange(clearUrl, HttpMethod.POST, clearRequest, String.class);
+                        isCleared = clearResponse.getStatusCode().is2xxSuccessful();
+                        log.info("Lithic Clearing / Settlement Succeeded for Auth Token {}: {}", authToken, isCleared);
+                    } catch (Exception ce) {
+                        log.warn("Lithic simulate/clearing warning: {}", ce.getMessage());
+                    }
+                }
 
                 return LithicAuthResult.builder()
-                        .token(token)
+                        .token(authToken)
                         .result(result)
                         .statusCode(statusCode)
                         .isApproved(isApproved)
-                        .rawResponse(response.getBody())
+                        .isCleared(isCleared)
+                        .rawResponse(authResponse.getBody())
                         .build();
             }
         } catch (Exception e) {
@@ -161,6 +217,7 @@ public class LithicClientService {
                 .result("APPROVED")
                 .statusCode("00")
                 .isApproved(true)
+                .isCleared(true)
                 .build();
     }
 
@@ -192,7 +249,7 @@ public class LithicClientService {
     private HttpHeaders buildAuthHeaders() {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        // Lithic accepts direct API key or Bearer token
+        // Lithic accepts direct API key in Authorization header
         headers.set("Authorization", apiKey != null ? apiKey.trim() : "");
         return headers;
     }
