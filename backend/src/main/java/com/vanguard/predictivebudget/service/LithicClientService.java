@@ -24,7 +24,7 @@ public class LithicClientService {
     @Value("${lithic.api.base-url:https://sandbox.lithic.com/v1}")
     private String baseUrl;
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate = new RestTemplate(new org.springframework.http.client.JdkClientHttpRequestFactory());
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Data
@@ -162,10 +162,15 @@ public class LithicClientService {
         try {
             HttpHeaders headers = buildAuthHeaders();
 
+            String safeDescriptor = merchantDescriptor != null ? merchantDescriptor.trim() : "AMAZON.COM";
+            if (safeDescriptor.length() > 25) {
+                safeDescriptor = safeDescriptor.substring(0, 25);
+            }
+
             Map<String, Object> authBody = new HashMap<>();
             authBody.put("pan", pan);
             authBody.put("amount", amountCents);
-            authBody.put("descriptor", merchantDescriptor != null ? merchantDescriptor : "AMAZON BUSINESS RETAIL");
+            authBody.put("descriptor", safeDescriptor);
 
             HttpEntity<Map<String, Object>> authRequest = new HttpEntity<>(authBody, headers);
             String authUrl = baseUrl + "/simulate/authorize";
