@@ -119,7 +119,10 @@ public class SpendRequestService {
         request.setRejectionReason(null);
 
         // Mint Single-Use Virtual Card via Lithic API
-        String memo = String.format("Vanguard #%d: %s for %s", request.getId(), request.getItemDescription(), request.getRequesterName());
+        String memo = String.format("Vanguard #%d: [$%.2f Cap] %s for %s", request.getId(), finalCap, request.getItemDescription(), request.getRequesterName());
+        if (memo.length() > 95) {
+            memo = memo.substring(0, 95);
+        }
         String cardholder = cleanRequesterName(request.getRequesterName());
 
         LithicClientService.LithicCardResult lithicCard = lithicClientService.createSingleUseCard(finalCap, memo, cardholder);
