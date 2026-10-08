@@ -11,10 +11,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Random;
-import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -24,11 +22,12 @@ import java.util.regex.Pattern;
 public class SpendRequestService {
 
     private final SpendRequestRepository spendRequestRepository;
+    private final LithicClientService lithicClientService;
     private static final BigDecimal DEFAULT_POLICY_THRESHOLD = new BigDecimal("300.00");
     private final Random random = new Random();
 
     /**
-     * Parse and process a /buy (or /bye) command string.
+     * Parse and process a /buy command string.
      */
     @Transactional
     public SpendRequest processBuyCommand(String rawText, String sender, String channel, Long workspaceId) {
@@ -93,7 +92,7 @@ public class SpendRequestService {
     }
 
     /**
-     * Manager 1-click Approval & Virtual Card Generator.
+     * Manager 1-click Approval & Real Lithic Virtual Card Generator.
      */
     @Transactional
     public SpendRequest approveAndIssueCard(Long requestId, BigDecimal customCap, UserPrincipal approver) {
@@ -119,21 +118,21 @@ public class SpendRequestService {
         request.setStatus(SpendRequestStatus.APPROVED_CARD_ISSUED);
         request.setRejectionReason(null);
 
-        // Mint Single-Use Virtual Card
-        int last4 = 1000 + random.nextInt(9000);
-        int cvvNum = 100 + random.nextInt(900);
-        LocalDateTime expiry = LocalDateTime.now().plusHours(24);
-        DateTimeFormatter expFmt = DateTimeFormatter.ofPattern("MM/yy");
+        // Mint Single-Use Virtual Card via Lithic API
+        String memo = String.format("Vanguard #%d: %s for %s", request.getId(), request.getItemDescription(), request.getRequesterName());
+        String cardholder = cleanRequesterName(request.getRequesterName());
 
-        request.setCardToken("vcard_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16));
-        request.setMaskedCardNumber("4242 •••• •••• " + last4);
-        request.setCardholderName(cleanRequesterName(request.getRequesterName()));
-        request.setCvv(String.valueOf(cvvNum));
-        request.setExpiryDate(expiry.format(expFmt));
+        LithicClientService.LithicCardResult lithicCard = lithicClientService.createSingleUseCard(finalCap, memo, cardholder);
+
+        request.setCardToken(lithicCard.getCardToken());
+        request.setMaskedCardNumber(lithicCard.getMaskedPan());
+        request.setCardholderName(cardholder);
+        request.setCvv(lithicCard.getCvv());
+        request.setExpiryDate(lithicCard.getExpiryDate());
         request.setIsBurned(false);
 
-        log.info("Approved spend request {} and issued virtual card {} (limit: ${}, category: {})",
-                requestId, request.getMaskedCardNumber(), finalCap, request.getMccCategoryLock());
+        log.info("Approved spend request {} and issued Lithic virtual card {} (Token: {}, Limit: ${}, Category: {})",
+                requestId, request.getMaskedCardNumber(), request.getCardToken(), finalCap, request.getMccCategoryLock());
         return spendRequestRepository.save(request);
     }
 
@@ -152,7 +151,7 @@ public class SpendRequestService {
     }
 
     /**
-     * Simulate merchant card transaction swipe.
+     * Simulate merchant card transaction swipe with Lithic Authorization Simulator.
      */
     @Transactional
     public SpendRequest simulateCardSwipe(Long requestId, BigDecimal amount, String merchantName) {
@@ -172,12 +171,27 @@ public class SpendRequestService {
                     amount, maxAllowed));
         }
 
+        String merchant = merchantName != null ? merchantName : "Amazon Business / Approved Vendor";
+
+        // Trigger Lithic Sandbox Authorization Simulator
+        LithicClientService.LithicAuthResult authResult = lithicClientService.simulateSwipeAuthorization(
+                request.getMaskedCardNumber(), amount, merchant);
+
+        if (!authResult.isApproved()) {
+            throw new IllegalStateException(String.format("Lithic Sandbox declined transaction: %s (Status: %s)",
+                    authResult.getResult(), authResult.getStatusCode()));
+        }
+
+        // Burn / Close the Single-Use Card on Lithic Sandbox
+        lithicClientService.closeCard(request.getCardToken());
+
         request.setActualChargedAmount(amount);
-        request.setMerchantName(merchantName != null ? merchantName : "Amazon Business / Approved Vendor");
+        request.setMerchantName(merchant);
         request.setIsBurned(true); // Burn single-use card immediately after swipe
         request.setStatus(SpendRequestStatus.CARD_SWIPED);
 
-        log.info("Simulated card swipe on request {}: charged ${} at {}", requestId, amount, request.getMerchantName());
+        log.info("Card swipe completed on request {}: charged ${} at {} (Lithic Token: {})", 
+                requestId, amount, request.getMerchantName(), request.getCardToken());
         return spendRequestRepository.save(request);
     }
 
@@ -270,8 +284,8 @@ public class SpendRequestService {
                 .approvedAmount(new BigDecimal("180.00"))
                 .policyThreshold(DEFAULT_POLICY_THRESHOLD)
                 .status(SpendRequestStatus.APPROVED_CARD_ISSUED)
-                .cardToken("vcard_f9a81c20e4b88931")
-                .maskedCardNumber("4242 •••• •••• 9812")
+                .cardToken("card_live_lithic_demo_01")
+                .maskedCardNumber("4000 •••• •••• 9812")
                 .cardholderName("Chloe Vance")
                 .cvv("419")
                 .expiryDate("11/27")

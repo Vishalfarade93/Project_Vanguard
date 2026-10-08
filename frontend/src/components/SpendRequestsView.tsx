@@ -206,6 +206,10 @@ export const SpendRequestsView: React.FC<SpendRequestsViewProps> = ({
               <span className="hidden sm:inline">Slack Webhooks</span>
             </button>
           )}
+          <div className="px-3 py-1.5 rounded-xl bg-blue-50 border border-blue-200 flex items-center gap-1.5 text-xs text-blue-800 font-semibold" title="Lithic Sandbox Issuing API Connected">
+            <Zap className="w-3.5 h-3.5 text-blue-600" />
+            <span className="hidden md:inline">Lithic Sandbox</span>
+          </div>
           <div className="px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center gap-2 text-xs text-emerald-800 font-semibold">
             <ShieldCheck className="w-4 h-4 text-emerald-600" />
             <span>Cap: <strong>${policyThreshold}</strong></span>
