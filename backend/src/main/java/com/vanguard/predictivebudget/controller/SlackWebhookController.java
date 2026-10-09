@@ -159,6 +159,55 @@ public class SlackWebhookController {
         }
     }
 
+    /**
+     * Endpoint for native Slack Slash Commands (e.g., /buy two dozens of cups for $110).
+     * Slack sends application/x-www-form-urlencoded POST requests.
+     */
+    @PostMapping(value = {"/slash-command", "/commands"}, consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
+    public ResponseEntity<?> handleSlackSlashCommand(
+            @RequestParam Map<String, String> formData,
+            @RequestParam(required = false) Long workspaceId,
+            @RequestParam(required = false) String workspaceSlug) {
+        try {
+            log.info("Received Slack Slash Command form payload: {}", formData);
+            String command = formData.getOrDefault("command", "/buy");
+            String text = formData.getOrDefault("text", "");
+            String user = formData.getOrDefault("user_name", "team_member");
+            String channel = formData.getOrDefault("channel_name", "general");
+            String teamId = formData.getOrDefault("team_id", "");
+
+            Long targetWorkspaceId = workspaceId != null ? workspaceId : 1L;
+            if (workspaceSlug != null && !workspaceSlug.isBlank()) {
+                targetWorkspaceId = workspaceRepository.findBySlug(workspaceSlug.trim())
+                        .map(Workspace::getId).orElse(targetWorkspaceId);
+            } else if (!teamId.isBlank()) {
+                targetWorkspaceId = workspaceRepository.findBySlackTeamId(teamId)
+                        .map(Workspace::getId).orElse(targetWorkspaceId);
+            }
+
+            String fullText = command + " " + text;
+            com.vanguard.predictivebudget.model.SpendRequest req = spendRequestService.processBuyCommand(
+                    fullText, "@" + user, "#" + channel, targetWorkspaceId);
+
+            Map<String, Object> slackResponse = new java.util.HashMap<>();
+            slackResponse.put("response_type", "in_channel");
+            slackResponse.put("text", String.format(
+                    "💳 *Vanguard Spend Request Submitted*\n• *Item:* %s\n• *Amount:* $%.2f\n• *Department:* %s\n• *Status:* %s\n• *Policy Cap:* $%.2f (MCC Category: `%s`)\n_Manager approval requested. Virtual card will be issued automatically upon approval._",
+                    req.getItemDescription(),
+                    req.getRequestedAmount() != null ? req.getRequestedAmount() : req.getPolicyThreshold(),
+                    req.getDepartment(),
+                    req.getStatus(),
+                    req.getPolicyThreshold(),
+                    req.getMccCategoryLock()
+            ));
+
+            return ResponseEntity.ok(slackResponse);
+        } catch (Exception e) {
+            log.error("Error processing Slack slash command: {}", e.getMessage(), e);
+            return ResponseEntity.ok(Map.of("response_type", "ephemeral", "text", "⚠️ Vanguard Error: " + e.getMessage()));
+        }
+    }
+
     private Long resolveWorkspaceId(Long queryWorkspaceId, String queryWorkspaceSlug, JsonNode rootNode) {
         if (queryWorkspaceId != null && queryWorkspaceId > 0) {
             return queryWorkspaceId;

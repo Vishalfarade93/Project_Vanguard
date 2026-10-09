@@ -36,11 +36,13 @@ public class SpendRequestService {
         }
 
         String cleaned = rawText.trim();
-        // Strictly enforce /buy as the sole command
+        // Support /buy, buy, or natural language requests
         if (cleaned.toLowerCase().startsWith("/buy")) {
             cleaned = cleaned.substring(4).trim();
-        } else {
-            throw new IllegalArgumentException("Invalid command. Spend requests must start with '/buy'");
+        } else if (cleaned.toLowerCase().startsWith("buy ")) {
+            cleaned = cleaned.substring(4).trim();
+        } else if (cleaned.toLowerCase().startsWith("need to buy ")) {
+            cleaned = cleaned.substring(12).trim();
         }
 
         BigDecimal requestedAmount = extractAmount(cleaned);
