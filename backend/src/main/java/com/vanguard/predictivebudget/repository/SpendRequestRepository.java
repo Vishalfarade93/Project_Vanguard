@@ -17,4 +17,10 @@ public interface SpendRequestRepository extends JpaRepository<SpendRequest, Long
     List<SpendRequest> findByWorkspaceIdAndStatusOrderByCreatedAtDesc(Long workspaceId, SpendRequestStatus status);
 
     long countByWorkspaceIdAndStatus(Long workspaceId, SpendRequestStatus status);
+
+    boolean existsByWorkspaceIdAndRequesterNameAndItemDescriptionAndCreatedAtAfter(
+            Long workspaceId, String requesterName, String itemDescription, java.time.LocalDateTime cutoff);
+
+    java.util.Optional<SpendRequest> findTopByWorkspaceIdAndRequesterNameAndItemDescriptionOrderByCreatedAtDesc(
+            Long workspaceId, String requesterName, String itemDescription);
 }

@@ -52,6 +52,28 @@ public class ExpenseExtractionService {
 
     private final CloudCapacityEstimator cloudCapacityEstimator;
 
+    @jakarta.annotation.PostConstruct
+    public void cleanupLegacyBuyForecasts() {
+        try {
+            List<PredictedExpense> all = predictedExpenseRepository.findAll();
+            int deleted = 0;
+            for (PredictedExpense exp : all) {
+                if (exp.getRawSnippet() != null) {
+                    String s = exp.getRawSnippet().trim().toLowerCase();
+                    if (s.startsWith("/buy") || s.startsWith("buy ") || s.startsWith("need to buy ")) {
+                        predictedExpenseRepository.delete(exp);
+                        deleted++;
+                    }
+                }
+            }
+            if (deleted > 0) {
+                log.info("Cleaned up {} legacy /buy requests from forecast ledger.", deleted);
+            }
+        } catch (Exception e) {
+            log.debug("Cleanup warning: {}", e.getMessage());
+        }
+    }
+
     /**
      * Scheduled service that runs every 5 minutes (300,000 milliseconds)
      */
@@ -78,6 +100,15 @@ public class ExpenseExtractionService {
 
         for (RawMessage message : unprocessedMessages) {
             try {
+                String rawContent = message.getContent() != null ? message.getContent().trim() : "";
+                // Strictly exclude spend requests (/buy) from AI Runway Forecast Ledger
+                if (rawContent.startsWith("/buy") || rawContent.toLowerCase().startsWith("buy ") || rawContent.toLowerCase().startsWith("need to buy ")) {
+                    message.setIsProcessed(true);
+                    rawMessageRepository.save(message);
+                    log.info("Skipped /buy spend command from forecast ledger: '{}'", rawContent);
+                    continue;
+                }
+
                 Long targetWsId = message.getWorkspaceId() != null ? message.getWorkspaceId() : 1L;
                 String threadTs = message.getThreadTs();
                 String topicKey = message.getTopicKey() != null ? message.getTopicKey() : deduceTopicKey(message.getContent());

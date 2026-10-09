@@ -17,12 +17,13 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @Service
-@RequiredArgsConstructor
+@RequiredArgsConstructor(onConstructor_ = {@org.springframework.beans.factory.annotation.Autowired, @org.springframework.context.annotation.Lazy})
 @Slf4j
 public class SpendRequestService {
 
     private final SpendRequestRepository spendRequestRepository;
     private final LithicClientService lithicClientService;
+    private final SlackClientService slackClientService;
     private static final BigDecimal DEFAULT_POLICY_THRESHOLD = new BigDecimal("300.00");
     private final Random random = new Random();
 
@@ -57,8 +58,19 @@ public class SpendRequestService {
             channel = "#general";
         }
 
+        Long targetWs = workspaceId != null ? workspaceId : 1L;
+
+        // De-duplication: check if an identical request was created within the last 15 seconds
+        LocalDateTime cutoff = LocalDateTime.now().minusSeconds(15);
+        if (spendRequestRepository.existsByWorkspaceIdAndRequesterNameAndItemDescriptionAndCreatedAtAfter(
+                targetWs, sender, itemDescription, cutoff)) {
+            log.warn("Skipping duplicate SpendRequest for {} ('{}') within 15s window.", sender, itemDescription);
+            return spendRequestRepository.findTopByWorkspaceIdAndRequesterNameAndItemDescriptionOrderByCreatedAtDesc(
+                    targetWs, sender, itemDescription).orElse(null);
+        }
+
         SpendRequest.SpendRequestBuilder builder = SpendRequest.builder()
-                .workspaceId(workspaceId != null ? workspaceId : 1L)
+                .workspaceId(targetWs)
                 .requesterName(sender)
                 .requesterChannel(channel)
                 .itemDescription(itemDescription)
@@ -137,9 +149,42 @@ public class SpendRequestService {
         request.setExpiryDate(lithicCard.getExpiryDate());
         request.setIsBurned(false);
 
+        SpendRequest saved = spendRequestRepository.save(request);
         log.info("Approved spend request {} and issued Lithic virtual card {} (Token: {}, Limit: ${}, Category: {})",
-                requestId, request.getMaskedCardNumber(), request.getCardToken(), finalCap, request.getMccCategoryLock());
-        return spendRequestRepository.save(request);
+                requestId, saved.getMaskedCardNumber(), saved.getCardToken(), finalCap, saved.getMccCategoryLock());
+
+        // Notify Employee in Slack with Virtual Card Details
+        try {
+            String displayCardNum = saved.getPan() != null && !saved.getPan().isBlank()
+                    ? formatPanWithSpaces(saved.getPan())
+                    : saved.getMaskedCardNumber();
+
+            String approvalSlackMsg = String.format(
+                    "🎉 *Spend Request Approved & Virtual Card Issued!*\n" +
+                    "👤 *Requester:* %s\n" +
+                    "📦 *Item:* %s\n" +
+                    "💳 *Single-Use Card Details:*\n" +
+                    "• *Card Number:* `%s`\n" +
+                    "• *Exp:* `%s`  |  *CVV:* `%s`\n" +
+                    "• *Cardholder:* `%s`\n" +
+                    "• *Authorized Limit:* `$%.2f`\n" +
+                    "• *Merchant Category Lock:* `%s`\n" +
+                    "_⚡ Note: This card is single-use and will automatically close/burn upon transaction._",
+                    saved.getRequesterName(),
+                    saved.getItemDescription(),
+                    displayCardNum,
+                    saved.getExpiryDate(),
+                    saved.getCvv(),
+                    saved.getCardholderName(),
+                    saved.getApprovedAmount(),
+                    saved.getMccCategoryLock()
+            );
+            slackClientService.postSlackNotification(saved.getWorkspaceId(), saved.getRequesterChannel(), approvalSlackMsg);
+        } catch (Exception e) {
+            log.warn("Failed to send Slack card approval notification: {}", e.getMessage());
+        }
+
+        return saved;
     }
 
     /**
@@ -152,8 +197,36 @@ public class SpendRequestService {
 
         request.setStatus(SpendRequestStatus.REJECTED);
         request.setRejectionReason(reason != null && !reason.isBlank() ? reason : "Declined by budget manager.");
-        log.info("Rejected spend request ID {}: {}", requestId, request.getRejectionReason());
-        return spendRequestRepository.save(request);
+        SpendRequest saved = spendRequestRepository.save(request);
+        log.info("Rejected spend request ID {}: {}", requestId, saved.getRejectionReason());
+
+        // Notify Employee in Slack of Rejection
+        try {
+            String rejectionSlackMsg = String.format(
+                    "❌ *Spend Request Declined*\n" +
+                    "👤 *Requester:* %s\n" +
+                    "📦 *Item:* %s\n" +
+                    "⚠️ *Reason:* %s",
+                    saved.getRequesterName(),
+                    saved.getItemDescription(),
+                    saved.getRejectionReason()
+            );
+            slackClientService.postSlackNotification(saved.getWorkspaceId(), saved.getRequesterChannel(), rejectionSlackMsg);
+        } catch (Exception e) {
+            log.warn("Failed to send Slack rejection notification: {}", e.getMessage());
+        }
+
+        return saved;
+    }
+
+    private String formatPanWithSpaces(String pan) {
+        if (pan == null || pan.length() < 16) return pan;
+        String clean = pan.replaceAll("\\s+", "");
+        if (clean.length() == 16) {
+            return String.format("%s %s %s %s",
+                    clean.substring(0, 4), clean.substring(4, 8), clean.substring(8, 12), clean.substring(12, 16));
+        }
+        return pan;
     }
 
     /**

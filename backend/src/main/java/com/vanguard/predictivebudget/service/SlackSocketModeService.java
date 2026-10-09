@@ -260,8 +260,11 @@ public class SlackSocketModeService {
 
                     if (!content.trim().isEmpty()) {
                         String trimmed = content.trim();
-                        if (trimmed.startsWith("/buy") || trimmed.startsWith("buy ") || trimmed.startsWith("need to buy ")) {
-                            log.info("Processing /buy chat message over Socket Mode from {}: '{}'", sender, trimmed);
+                        if (trimmed.startsWith("/buy")) {
+                            log.debug("Skipping message event for /buy as it was already handled by slash_commands.");
+                            return;
+                        } else if (trimmed.toLowerCase().startsWith("buy ") || trimmed.toLowerCase().startsWith("need to buy ")) {
+                            log.info("Processing natural language buy message over Socket Mode from {}: '{}'", sender, trimmed);
                             spendRequestService.processBuyCommand(trimmed, sender, channel, targetWorkspaceId);
                         } else {
                             // Ingest for Forecast AI Extraction

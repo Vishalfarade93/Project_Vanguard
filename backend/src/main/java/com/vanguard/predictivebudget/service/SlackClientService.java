@@ -232,6 +232,11 @@ public class SlackClientService {
                                 String threadTs = msg.has("thread_ts") ? msg.path("thread_ts").asText(null) : null;
 
                                 if (text != null && text.trim().length() > 10 && !msg.has("subtype")) {
+                                    String cleanText = text.trim();
+                                    // Skip /buy spend commands from being ingested as forecast runway expenses
+                                    if (cleanText.startsWith("/buy") || cleanText.toLowerCase().startsWith("buy ") || cleanText.toLowerCase().startsWith("need to buy ")) {
+                                        continue;
+                                    }
                                     if (!rawMessageRepository.existsByContent(text)) {
                                         RawMessage rawMessage = RawMessage.builder()
                                                 .workspaceId(targetWorkspaceId)
@@ -495,5 +500,53 @@ public class SlackClientService {
                     Map.of("sender", "Elena (Platform)", "text", "We need to provision 3 dedicated high-memory EC2 r6i.4xlarge nodes next month for our in-memory cache upgrade, roughly $2,100.")
             );
         }
+    }
+
+    /**
+     * Post a formatted markdown notification to a Slack channel or DM.
+     */
+    public boolean postSlackNotification(Long workspaceId, String channel, String text) {
+        if (channel == null || channel.isBlank() || text == null || text.isBlank()) {
+            return false;
+        }
+        Long targetWorkspaceId = workspaceId != null ? workspaceId : 1L;
+        String token = "";
+        if (workspaceRepository != null) {
+            token = workspaceRepository.findById(targetWorkspaceId)
+                    .map(com.vanguard.predictivebudget.model.Workspace::getSlackToken)
+                    .orElse("");
+        }
+
+        if (token == null || token.isBlank() || token.startsWith("xoxb-demo")) {
+            log.info("[SLACK NOTIFICATION to {} on Workspace {}]:\n{}", channel, targetWorkspaceId, text);
+            return true;
+        }
+
+        try {
+            String url = "https://slack.com/api/chat.postMessage";
+            HttpHeaders headers = new HttpHeaders();
+            headers.setBearerAuth(token.trim());
+            headers.setContentType(org.springframework.http.MediaType.APPLICATION_JSON);
+
+            Map<String, Object> body = new HashMap<>();
+            body.put("channel", channel.replace("#", ""));
+            body.put("text", text);
+
+            HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+            ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                JsonNode root = objectMapper.readTree(response.getBody());
+                boolean ok = root.path("ok").asBoolean(false);
+                if (ok) {
+                    log.info("Posted Slack notification to {} on Workspace {}", channel, targetWorkspaceId);
+                    return true;
+                } else {
+                    log.warn("Slack chat.postMessage error: {}", root.path("error").asText());
+                }
+            }
+        } catch (Exception e) {
+            log.error("Failed to post Slack notification: {}", e.getMessage());
+        }
+        return false;
     }
 }
