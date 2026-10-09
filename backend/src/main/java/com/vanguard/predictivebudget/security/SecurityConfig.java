@@ -43,8 +43,7 @@ public class SecurityConfig {
                         // Public endpoints
                         .requestMatchers(
                                 "/api/auth/**",
-                                "/api/slack/events",
-                                "/api/slack/oauth/**",
+                                "/api/slack/**",
                                 "/api/integrations/email/inbound/**",
                                 "/h2-console/**",
                                 "/error"
