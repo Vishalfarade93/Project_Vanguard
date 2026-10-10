@@ -153,7 +153,7 @@ public class SlackWebhookController {
             }
 
             return ResponseEntity.ok(Collections.singletonMap("status", "ok"));
-        } catch (Exception e) {
+        } catch (Throwable e) {
             log.error("Error processing Slack webhook: {}", e.getMessage(), e);
             return ResponseEntity.ok(Collections.singletonMap("status", "error"));
         }

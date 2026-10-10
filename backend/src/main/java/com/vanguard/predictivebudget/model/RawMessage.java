@@ -42,4 +42,20 @@ public class RawMessage {
     @Column(name = "is_processed", nullable = false)
     @Builder.Default
     private boolean isProcessed = false;
+
+    public void setProcessed(boolean isProcessed) {
+        this.isProcessed = isProcessed;
+    }
+
+    public void setIsProcessed(boolean isProcessed) {
+        this.isProcessed = isProcessed;
+    }
+
+    public boolean isProcessed() {
+        return this.isProcessed;
+    }
+
+    public boolean getIsProcessed() {
+        return this.isProcessed;
+    }
 }

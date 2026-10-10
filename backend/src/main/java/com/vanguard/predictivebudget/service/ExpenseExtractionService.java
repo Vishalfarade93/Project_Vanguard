@@ -103,7 +103,7 @@ public class ExpenseExtractionService {
                 String rawContent = message.getContent() != null ? message.getContent().trim() : "";
                 // Strictly exclude spend requests (/buy) from AI Runway Forecast Ledger
                 if (rawContent.startsWith("/buy") || rawContent.toLowerCase().startsWith("buy ") || rawContent.toLowerCase().startsWith("need to buy ")) {
-                    message.setIsProcessed(true);
+                    message.setProcessed(true);
                     rawMessageRepository.save(message);
                     log.info("Skipped /buy spend command from forecast ledger: '{}'", rawContent);
                     continue;
