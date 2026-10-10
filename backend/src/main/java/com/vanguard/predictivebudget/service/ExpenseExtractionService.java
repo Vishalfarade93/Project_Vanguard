@@ -239,7 +239,8 @@ public class ExpenseExtractionService {
                             // Check for identical duplicate repost
                             String normalizedContent = message.getContent().replaceAll("[\\s_\"'*]", "").toLowerCase();
                             boolean isDuplicate = predictedExpenseRepository.findByWorkspaceId(targetWsId).stream()
-                                    .anyMatch(e -> e.getEstimatedAmount().compareTo(cost) == 0 &&
+                                    .anyMatch(e -> e.getEstimatedAmount() != null && cost != null &&
+                                            e.getEstimatedAmount().compareTo(cost) == 0 &&
                                             e.getRawSnippet() != null &&
                                             e.getRawSnippet().replaceAll("[\\s_\"'*]", "").toLowerCase().equals(normalizedContent));
 
