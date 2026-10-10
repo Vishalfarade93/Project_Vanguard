@@ -38,12 +38,11 @@ public class SlackWebhookController {
      */
     @PostMapping(value = "/events", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> handleSlackEvents(
-            @RequestBody String rawPayload,
+            @RequestBody JsonNode rootNode,
             @RequestParam(required = false) Long workspaceId,
             @RequestParam(required = false) String workspaceSlug) {
         try {
-            log.info("Received Slack webhook payload: {}", rawPayload);
-            JsonNode rootNode = objectMapper.readTree(rawPayload);
+            log.info("Received Slack webhook payload: {}", rootNode);
 
             // 1. Handle Slack URL Verification Challenge
             if (rootNode.has("type") && "url_verification".equals(rootNode.get("type").asText())) {
